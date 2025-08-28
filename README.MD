@@ -95,11 +95,6 @@ The backend will start on `http://127.0.0.1:8000` by default. API endpoints are 
 - Fork the repo, create a feature branch, make changes, add tests where appropriate, and open a pull request.
 - Keep frontend and backend changes scoped to their respective folders.
 
-## License & contact
 
-- Add a LICENSE file at the repository root if you want to set an explicit license.
-- For questions about the codebase, open an issue or contact the repository owner.
-
----
 
 
