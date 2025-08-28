@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.sqlite3
+
+# Environment
+.env
+*.env
+
+# Django migrations
+*/migrations/
+!*/migrations/__init__.py
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# PyCharm
+.idea/
+
+# Byte-compiled / cache
+*.pyc
+*.pyo
+*.pyd
+*.py~ 
+*.swp
+
+# Logs
+*.log
+
+# Static files
+staticfiles/
+
+# Media uploads
+media/
+
+# Virtual environments
+venv/
+env/
