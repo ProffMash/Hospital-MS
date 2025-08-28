@@ -39,11 +39,17 @@ export const PatientManagement: React.FC = () => {
     medicalHistory: ''
   });
 
-  const filteredPatients = patients.filter(patient =>
-    `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phone.includes(searchTerm)
-  );
+  const filteredPatients = patients.filter(patient => {
+    const name = `${patient.firstName ? patient.firstName : ''} ${patient.lastName ? patient.lastName : ''}`.toLowerCase();
+    const email = patient.email ? patient.email.toLowerCase() : '';
+    const phone = patient.phone ? patient.phone : '';
+    const search = searchTerm ? searchTerm.toLowerCase() : '';
+    return (
+      name.includes(search) ||
+      email.includes(search) ||
+      phone.includes(search)
+    );
+  });
 
   const handleOpenModal = (patient?: Patient) => {
     if (patient) {
