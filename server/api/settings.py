@@ -28,19 +28,18 @@ SECRET_KEY = 'django-insecure-l1n+0*hs2n13@3hd0pebzer)liaqs5lhrpnp3$bo10m*dn@_rp
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = [
-    'hospial-ms.onrender.com',
-    'hospial-ms.vercel.app',
+    'hospital-ms-9mt5.onrender.com',
+    'hospital-ms-alpha.vercel.app',
     'localhost',
     '127.0.0.1',
-    'hospital-ms.vercel.app',
 ]
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'https://hospital-ms.vercel.app',
-    'https://hospital-ms.onrender.com'
+    'https://hospital-ms-alpha.vercel.app',
+    'https://hospital-ms-9mt5.onrender.com'
 ]
 
 CORS_ALLOW_HEADERS = [
