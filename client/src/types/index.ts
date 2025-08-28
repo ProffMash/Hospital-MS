@@ -102,7 +102,7 @@ export interface LabOrder {
   doctorId: string;
   testIds: string[];
   status: 'pending' | 'sample_collected' | 'in_progress' | 'completed' | 'cancelled';
-  priority: 'routine' | 'urgent' | 'stat';
+  priority?: 'routine' | 'urgent' | 'stat';
   orderDate: string;
   sampleCollectedDate?: string;
   completedDate?: string;

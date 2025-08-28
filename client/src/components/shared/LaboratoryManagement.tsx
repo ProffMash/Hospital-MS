@@ -158,10 +158,17 @@ export const Laboratory: React.FC = () => {
     // prefill forms when opening modals
     if (type === 'order') {
       if (item) {
+        // Prefer item.tests, but if not present, join testIds as a string
+        let testsValue = '';
+        if (item.tests) {
+          testsValue = item.tests;
+        } else if (item.testIds && Array.isArray(item.testIds)) {
+          testsValue = item.testIds.join(', ');
+        }
         setOrderFormData({
           patientId: item.patientId ?? (item.patient ? String(item.patient) : ''),
           doctorId: item.doctorId ?? (item.doctor ? String(item.doctor) : ''),
-          tests: item.tests ?? '',
+          tests: testsValue,
           status: item.status ?? '',
           notes: item.notes || ''
         });
@@ -212,11 +219,10 @@ export const Laboratory: React.FC = () => {
 
       if (editingItem) {
         const resolvedIdKey = editingItem?.id ?? (editingItem as any)?.orderId ?? (editingItem as any)?.pk ?? '';
-        const resolvedIdNum = Number(resolvedIdKey);
-        if (!resolvedIdKey || Number.isNaN(resolvedIdNum) || resolvedIdNum <= 0) {
+        if (!resolvedIdKey) {
           console.error('Cannot update lab order: invalid id', resolvedIdKey, editingItem);
         } else {
-          apiUpdateLabOrder(resolvedIdNum, payload as any)
+          apiUpdateLabOrder(resolvedIdKey, payload as any)
             .then((resp) => {
               const localId = String(resolvedIdKey);
               updateLabOrder(localId, {
@@ -233,15 +239,23 @@ export const Laboratory: React.FC = () => {
       } else {
         apiCreateLabOrder(payload as any)
           .then((resp) => {
+            let testIds: string[] = [];
+            if (Array.isArray(resp.tests)) {
+              testIds = resp.tests;
+            } else if (typeof resp.tests === 'string') {
+              testIds = resp.tests.split(',').map((t: string) => t.trim()).filter(Boolean);
+            }
             addLabOrder({
+              id: resp.id ? String(resp.id) : '',
               patientId: String(resp.patient),
               doctorId: resp.doctor ? String(resp.doctor) : '',
-              testIds: resp.tests ? resp.tests.split(',').map((t: string) => t.trim()) : [],
+              testIds,
               status: resp.status as any,
-              priority: 'routine',
               orderDate: resp.created_at || new Date().toISOString(),
               notes: resp.notes || '',
-            } as Omit<LabOrder, 'id' | 'createdAt' | 'updatedAt'>);
+              createdAt: resp.created_at || new Date().toISOString(),
+              updatedAt: resp.created_at || new Date().toISOString(),
+            });
           })
           .catch((err) => console.error('Failed to create lab order', err));
       }
@@ -273,7 +287,7 @@ export const Laboratory: React.FC = () => {
             if (matchingOrder) {
               if (matchingOrder.testIds && Array.isArray(matchingOrder.testIds) && matchingOrder.testIds.length) {
                 const tid = matchingOrder.testIds[0];
-                resolvedTestName = labTests.find(t => t.id === tid)?.name ?? '';
+                resolvedTestName = labTests.find(t => t.id === tid)?.name || tid || '';
               } else if ((matchingOrder as any).tests) {
                 if (Array.isArray((matchingOrder as any).tests)) resolvedTestName = (matchingOrder as any).tests[0] ?? '';
                 else resolvedTestName = String((matchingOrder as any).tests).split(',')[0].trim();
@@ -318,7 +332,7 @@ export const Laboratory: React.FC = () => {
               if (createdOrder) {
                 if (createdOrder.testIds && Array.isArray(createdOrder.testIds) && createdOrder.testIds.length) {
                   const tid = createdOrder.testIds[0];
-                  createdTestName = labTests.find(t => t.id === tid)?.name ?? '';
+                  createdTestName = labTests.find(t => t.id === tid)?.name || tid || '';
                 } else if ((createdOrder as any).tests) {
                   if (Array.isArray((createdOrder as any).tests)) createdTestName = (createdOrder as any).tests[0] ?? '';
                   else createdTestName = String((createdOrder as any).tests).split(',')[0].trim();
@@ -523,7 +537,14 @@ export const Laboratory: React.FC = () => {
       header: 'Tests',
   render: (_: any, order: LabOrder) => {
   const testNames = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).filter(Boolean) as (string|undefined)[];
-  const testsDisplay = testNames.length ? (testNames as string[]).join(', ') : ((order as any).tests || 'No tests');
+  let testsDisplay = '';
+  if (testNames.length) {
+    testsDisplay = (testNames as string[]).join(', ');
+  } else if (order.testIds && Array.isArray(order.testIds) && order.testIds.length) {
+    testsDisplay = order.testIds.join(', ');
+  } else {
+    testsDisplay = (order as any).tests || 'No tests';
+  }
         return (
           <div className="max-w-xs">
             <p className="text-sm text-gray-900 dark:text-white truncate">

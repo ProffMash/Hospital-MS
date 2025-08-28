@@ -20,12 +20,14 @@ export async function fetchLabOrders(): Promise<LabOrder[]> {
 
 // Create a new lab order (Create)
 export async function createLabOrder(labOrder: Omit<LabOrder, 'id' | 'created_at' | 'patient_name' | 'doctor_name'>): Promise<LabOrder> {
+	// Do not send 'id' when creating a new lab order; let backend assign it
 	const response = await api.post<LabOrder>(`lab-orders/`, labOrder);
 	return response.data;
 }
 
 // Update an existing lab order (Update)
 export async function updateLabOrder(id: number, labOrder: Partial<Omit<LabOrder, 'id' | 'created_at' | 'patient_name' | 'doctor_name'>>): Promise<LabOrder> {
+	// Only use backend-provided 'id' for updates
 	const response = await api.put<LabOrder>(`lab-orders/${id}/`, labOrder);
 	return response.data;
 }

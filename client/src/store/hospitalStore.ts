@@ -73,7 +73,7 @@ interface HospitalStore {
   labOrders: LabOrder[];
   // Replace entire labOrders array (used when syncing from backend)
   setLabOrders: (labOrders: LabOrder[]) => void;
-  addLabOrder: (labOrder: Omit<LabOrder, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addLabOrder: (labOrder: LabOrder) => void;
   updateLabOrder: (id: string, labOrder: Partial<LabOrder>) => void;
   // Remove a lab order
   deleteLabOrder: (id: string) => void;
@@ -425,9 +425,9 @@ export const useHospitalStore = create<HospitalStore>()(
             ...state.labOrders,
             {
               ...labOrder,
-              id: generateId(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              id: labOrder.id ? String(labOrder.id) : generateId(),
+              createdAt: (labOrder as any).createdAt ?? (labOrder as any).created_at ?? new Date().toISOString(),
+              updatedAt: (labOrder as any).updatedAt ?? (labOrder as any).updated_at ?? (labOrder as any).createdAt ?? (labOrder as any).created_at ?? new Date().toISOString(),
             },
           ],
         }));
