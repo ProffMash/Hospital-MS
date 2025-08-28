@@ -94,6 +94,28 @@ The backend will start on `http://127.0.0.1:8000` by default. API endpoints are 
 
 - Fork the repo, create a feature branch, make changes, add tests where appropriate, and open a pull request.
 - Keep frontend and backend changes scoped to their respective folders.
+ - Fork the repo, create a feature branch, make changes, add tests where appropriate, and open a pull request.
+ - Keep frontend and backend changes scoped to their respective folders.
+
+Note for testers: on the first sign-in after the backend is idle the database (free-tier hosting) may cold-start. Expect the first login request to take up to ~50 seconds — please wait rather than retrying immediately. Subsequent requests should be fast.
+
+## Test accounts / Pre-seeded logins
+
+The project includes a few pre-seeded accounts you can use for manual testing in the frontend UI (email/password):
+
+- Admin Dashboard
+  - email: admin@gmail.com
+  - password: password
+
+- Doctor Dashboard
+  - email: doc@gmail.com
+  - password: password
+
+- Pharmacy Dashboard
+  - email: pharm@gmail.com
+  - password: password
+
+
 
 
 
