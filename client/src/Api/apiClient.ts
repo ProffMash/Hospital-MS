@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'http://127.0.0.1:8000/api/';
+const API_BASE = 'https://hospital-ms.onrender.com/api/';
 
 const api = axios.create({
   baseURL: API_BASE,
