@@ -77,7 +77,7 @@ export const StaffManagement: React.FC = () => {
     e.preventDefault();
     (async () => {
       try {
-        if (editingStaff) {
+  if (editingStaff) {
           // Update server then local store
           const payload = {
             name: formData.name,
@@ -101,18 +101,27 @@ export const StaffManagement: React.FC = () => {
             specialization: formData.specialization,
             updatedAt: new Date().toISOString(),
           });
-        } else {
+  } else {
           // register creates a new user on server; create requires password — use a default temporary one
           const registerPayload = {
             email: formData.email,
             password: formData.password || 'ChangeMe123!',
             name: formData.name,
-            role: formData.role,
+            // backend requires a role within ('admin','doctor','pharmacist') and has a default; ensure we send one
+            role: formData.role || 'admin',
             specialization: formData.specialization,
             phone: formData.phone,
             address: formData.address,
           };
-          await staffApi.registerUser(registerPayload as any);
+          try {
+            await staffApi.registerUser(registerPayload as any);
+          } catch (err: any) {
+            // Log server validation errors and show a simple alert for now
+            console.error('Register error', err);
+            const fieldErrors = Object.entries(err || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('\n');
+            alert('Failed to register user:\n' + (fieldErrors || JSON.stringify(err)));
+            return; // keep modal open so user can fix
+          }
           // map server user to local Staff and add to store
           const names = (formData.name || '').split(' ');
           const newStaff: Omit<Staff, 'id' | 'createdAt' | 'updatedAt'> = {

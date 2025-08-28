@@ -41,8 +41,16 @@ export async function fetchUserById(id: number): Promise<User> {
 // Register / create a new user
 // NOTE: backend may return a user object or a message; adapt callers if needed
 export async function registerUser(payload: RegisterPayload): Promise<User | any> {
-  const response = await api.post(`${AUTH_URL}register/`, payload);
-  return response.data;
+  try {
+    const response = await api.post(`${AUTH_URL}register/`, payload);
+    return response.data;
+  } catch (err: any) {
+    // Prefer throwing the server validation payload so callers can inspect field errors
+    if (err?.response?.data) {
+      throw err.response.data;
+    }
+    throw err;
+  }
 }
 
 // Update an existing user (partial)
