@@ -436,42 +436,35 @@ export const Laboratory: React.FC = () => {
       dataToExport = filteredOrders.map(order => {
         const patient = patients.find(p => p.id === order.patientId);
         const doctor = staff.find(s => s.id === order.doctorId);
-  const tests = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).join(', ');
-        
+        const tests = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).filter(Boolean).join(', ');
         return {
-          'Order Date': formatDate(order.orderDate),
           'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
           'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : ((order as any).doctor_name || 'Unknown'),
           'Tests': tests,
-          'Priority': (order as any).priority || '-',
+          'Notes': order.notes || (order as any).notes || '—',
           'Status': order.status,
-          'Notes': order.notes || 'N/A'
+          'Order Date': formatDate(order.orderDate)
         };
       });
       filename = 'lab-orders-report';
       title = 'Lab Orders Report';
-  } else if (activeTab === 'results') {
+    } else if (activeTab === 'results') {
       dataToExport = filteredResults.map(result => {
         const order = labOrders.find(o => o.id === result.orderId);
         const test = labTests.find(t => t.id === result.testId);
         const patient = order ? patients.find(p => p.id === order.patientId) : null;
-        
         return {
-          'Completed Date': formatDate(result.completedAt),
-          'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
-          'Test': test?.name || 'Unknown',
-          'Value': result.value,
-          'Unit': result.unit,
-          'Normal Range': result.normalRange,
+          'Test': (result as any).testName || test?.name || 'Unknown Test',
+          'Patient': (result as any).patientName || (patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown'),
+          'Result': result.value,
           'Status': result.status,
-          'Technician': result.technician
+          'Date': formatDate(result.completedAt)
         };
       });
       filename = 'lab-results-report';
       title = 'Lab Results Report';
     }
-    
-  exportData(dataToExport, filename, format, title);
+    exportData(dataToExport, filename, format, title);
   };
 
   const getStatusColor = (status: string) => {
