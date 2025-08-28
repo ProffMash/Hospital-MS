@@ -27,7 +27,13 @@ SECRET_KEY = 'django-insecure-l1n+0*hs2n13@3hd0pebzer)liaqs5lhrpnp3$bo10m*dn@_rp
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['hospial-ms.onrender.com', 'localhost', '127.0.0.1', 'hospital-ms.vercel.app']
+ALLOWED_HOSTS = [
+    'hospial-ms.onrender.com',
+    'hospial-ms.vercel.app',
+    'localhost',
+    '127.0.0.1',
+    'hospital-ms.vercel.app',
+]
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
