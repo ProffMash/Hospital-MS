@@ -38,6 +38,14 @@ Development tooling
 - Git for source control
 - Optional: VS Code (recommended)
 
+## Live demo
+
+A live deployment of the frontend is available at:
+
+- https://hospital-ms-alpha.vercel.app
+
+This is a preview deployment and may be hosted on a free tier — see the tester note below about a possible cold-start delay on first login.
+
 ## Quick start — prerequisites
 
 - Node.js (LTS) and pnpm
