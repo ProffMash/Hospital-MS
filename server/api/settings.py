@@ -27,14 +27,14 @@ SECRET_KEY = 'django-insecure-l1n+0*hs2n13@3hd0pebzer)liaqs5lhrpnp3$bo10m*dn@_rp
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = ['', 'localhost', '127.0.0.1', 'hospital-ms.vercel.app']
+ALLOWED_HOSTS = ['hospial-ms.onrender.com', 'localhost', '127.0.0.1', 'hospital-ms.vercel.app']
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
-    'https://hospial-ms.vercel.app',
-    # 'https://your-production-url.com',
+    'https://hospital-ms.vercel.app',
+    'https://hospital-ms.onrender.com'
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -97,14 +97,16 @@ WSGI_APPLICATION = 'api.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL'),
-        conn_max_age=600,
-        ssl_require=True
-    )
-}
-
+# Database
+db_url = config('DATABASE_URL', default='')
+if db_url and db_url.strip():
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=db_url,
+            conn_max_age=600,
+            ssl_require=True
+        )
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
