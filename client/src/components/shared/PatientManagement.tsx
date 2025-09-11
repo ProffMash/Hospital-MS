@@ -30,13 +30,14 @@ export const PatientManagement: React.FC = () => {
     lastName: '',
     email: '',
     phone: '',
-    dateOfBirth: '',
+  dateOfBirth: '',
     gender: '',
     address: '',
     emergencyContact: '',
   emergencyRelationship: '',
     emergencyPhone: '',
-    medicalHistory: ''
+  medicalHistory: '',
+  paymentStatus: 'not_paid'
   });
 
   const filteredPatients = patients.filter(patient => {
@@ -67,6 +68,8 @@ export const PatientManagement: React.FC = () => {
   emergencyRelationship: (patient as any).emergencyRelationship ?? (patient as any).emergency_contact_relationship ?? '',
         emergencyPhone: patient.emergencyPhone,
         medicalHistory: patient.medicalHistory || ''
+  ,
+  paymentStatus: (patient as any).paymentStatus ?? (patient as any).payment_status ?? 'not_paid'
       });
     } else {
       setEditingPatient(null);
@@ -82,6 +85,8 @@ export const PatientManagement: React.FC = () => {
   emergencyRelationship: '',
   emergencyPhone: '',
         medicalHistory: ''
+  ,
+  paymentStatus: 'not_paid'
       });
     }
     setShowModal(true);
@@ -125,6 +130,8 @@ export const PatientManagement: React.FC = () => {
   // ensure server-required relationship is non-empty on create
   emergency_contact_relationship: formData.emergencyRelationship || 'Not specified',
       medical_history: formData.medicalHistory || null,
+    // include payment status (snake_case for API)
+    payment_status: (formData as any).paymentStatus || undefined,
     };
 
 
@@ -142,6 +149,7 @@ export const PatientManagement: React.FC = () => {
           updatePatient(editingPatient.id, {
             ...formData,
             gender: formData.gender as 'male' | 'female' | 'other',
+            paymentStatus: (formData as any).paymentStatus as 'paid' | 'not_paid' | undefined,
             updatedAt: new Date().toISOString(),
           });
           handleCloseModal();
@@ -153,6 +161,7 @@ export const PatientManagement: React.FC = () => {
           updatePatient(editingPatient.id, {
             ...formData,
             gender: formData.gender as 'male' | 'female' | 'other',
+            paymentStatus: (formData as any).paymentStatus as 'paid' | 'not_paid' | undefined,
             updatedAt: new Date().toISOString(),
           });
           handleCloseModal();
@@ -179,6 +188,7 @@ export const PatientManagement: React.FC = () => {
             emergencyPhone: res.emergency_contact_phone,
             emergencyRelationship: res.emergency_contact_relationship || 'Not specified',
             medicalHistory: res.medical_history || undefined,
+            paymentStatus: (res as any).payment_status ?? 'not_paid',
             createdAt: res.created_at,
             updatedAt: res.created_at,
           };
@@ -203,6 +213,7 @@ export const PatientManagement: React.FC = () => {
             emergencyPhone: formData.emergencyPhone,
             emergencyRelationship: formData.emergencyRelationship || 'Not specified',
             medicalHistory: formData.medicalHistory || undefined,
+            paymentStatus: (formData as any).paymentStatus as 'paid' | 'not_paid' | undefined,
           });
           handleCloseModal();
         });
@@ -238,7 +249,9 @@ export const PatientManagement: React.FC = () => {
   emergencyContact: p.emergency_contact_name,
   emergencyPhone: p.emergency_contact_phone,
   emergencyRelationship: p.emergency_contact_relationship || 'Not specified',
-      medicalHistory: p.medical_history || undefined,
+  medicalHistory: p.medical_history || undefined,
+  // map backend payment_status to UI-friendly camelCase property
+  paymentStatus: (p as any).payment_status ?? 'not_paid',
       createdAt: p.created_at,
       updatedAt: p.created_at,
     });
@@ -288,11 +301,14 @@ export const PatientManagement: React.FC = () => {
         'Medical History': patient.medicalHistory || 'N/A',
         'Created': formatDate(patient.createdAt),
         'Updated': formatDate(patient.updatedAt),
+    'Payment Status': (patient as any).paymentStatus || 'not_paid',
       }
     ];
 
     exportData(dataToExport, `patient-${patient.id}`, 'pdf', `Patient — ${patient.firstName} ${patient.lastName}`);
   };
+
+  // payment toggling removed — payment status is set on creation/edit via modal
 
   const columns = [
     {
@@ -314,6 +330,17 @@ export const PatientManagement: React.FC = () => {
       header: 'Gender',
       render: (value: string) => (
         <span className="capitalize">{value}</span>
+      )
+    },
+    {
+      key: 'payment',
+      header: 'Payment',
+      render: (_: any, patient: Patient) => (
+        <div className="flex items-center space-x-2">
+          <span className={`px-2 py-1 rounded text-xs ${((patient as any).paymentStatus === 'paid') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+            {((patient as any).paymentStatus === 'paid') ? 'Paid' : 'Not paid'}
+          </span>
+        </div>
       )
     },
     {
@@ -470,6 +497,17 @@ export const PatientManagement: React.FC = () => {
               options={genderOptions}
               placeholder="Select gender"
               required
+            />
+            <Select
+              label="Payment Status"
+              name="paymentStatus"
+              value={(formData as any).paymentStatus || 'not_paid'}
+              onChange={(e) => setFormData({ ...formData, paymentStatus: e.target.value })}
+              options={[
+                { value: 'paid', label: 'Paid' },
+                { value: 'not_paid', label: 'Not paid' },
+              ]}
+              className="w-full"
             />
             <Input
               label="Emergency Contact"

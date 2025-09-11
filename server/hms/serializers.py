@@ -16,7 +16,9 @@ class UserSerializer(serializers.ModelSerializer):
 class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
+        # include payment_status so clients can read/update payment state
         fields = '__all__'
+
 
 
 class MedicineSerializer(serializers.ModelSerializer):
@@ -230,6 +232,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             'time',
             'reason',
             'status',
+            'payment_status',
         ]
 
     def get_patient_name(self, obj):

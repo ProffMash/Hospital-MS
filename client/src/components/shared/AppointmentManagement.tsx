@@ -35,7 +35,8 @@ export const AppointmentManagement: React.FC = () => {
     date: '',
     time: '',
     reason: '',
-    status: 'scheduled'
+  status: 'scheduled',
+  paymentStatus: 'not_paid'
   });
 
   const filteredAppointments = useMemo(() => {
@@ -70,6 +71,7 @@ export const AppointmentManagement: React.FC = () => {
         time: appointment.time,
   reason: appointment.reason,
   status: appointment.status,
+  paymentStatus: (appointment as any).paymentStatus ?? 'not_paid',
       });
     } else {
       setEditingAppointment(null);
@@ -80,6 +82,7 @@ export const AppointmentManagement: React.FC = () => {
         time: '',
   reason: '',
   status: 'scheduled',
+  paymentStatus: 'not_paid',
       });
     }
     setShowModal(true);
@@ -102,6 +105,7 @@ export const AppointmentManagement: React.FC = () => {
         doctorId: formData.doctorId,
     reason: formData.reason,
   status: (formData as any).status || editingAppointment.status,
+  paymentStatus: (formData as any).paymentStatus as 'paid' | 'not_paid' | undefined,
       });
     } else {
       addAppointment({
@@ -111,7 +115,8 @@ export const AppointmentManagement: React.FC = () => {
         time: formData.time,
         
         reason: formData.reason,
-        status: 'scheduled'
+        status: 'scheduled',
+        paymentStatus: (formData as any).paymentStatus as 'paid' | 'not_paid' | undefined,
       } as Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>);
     }
 
@@ -145,6 +150,7 @@ export const AppointmentManagement: React.FC = () => {
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
         'Doctor': doctor ? `${doctor.firstName} ${doctor.lastName}` : 'Unknown',
             'Status': appointment.status,
+            'Payment Status': (appointment as any).paymentStatus || 'not_paid',
             'Reason': appointment.reason,
         'Created': formatDate(appointment.createdAt)
       };
@@ -163,14 +169,17 @@ export const AppointmentManagement: React.FC = () => {
         'Time': formatTime(appointment.time),
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
         'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown',
-        'Status': appointment.status,
-        'Reason': appointment.reason || 'N/A',
-        'Created': formatDate(appointment.createdAt)
+  'Status': appointment.status,
+  'Payment Status': (appointment as any).paymentStatus || 'not_paid',
+  'Reason': appointment.reason || 'N/A',
+  'Created': formatDate(appointment.createdAt)
       }
     ];
 
     exportData(dataToExport, `appointment-${appointment.id}`, 'pdf', `Appointment — ${patient ? `${patient.firstName} ${patient.lastName}` : appointment.patientId}`);
   };
+
+  // payment toggling removed — payment status is set on creation/edit via modal
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -240,6 +249,17 @@ export const AppointmentManagement: React.FC = () => {
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium ${getStatusColor(value)}`}>
           <span className="capitalize">{value.replace('_', ' ')}</span>
         </span>
+      )
+    },
+    {
+      key: 'payment',
+      header: 'Payment',
+      render: (_: any, appointment: Appointment) => (
+        <div className="flex items-center space-x-2">
+          <span className={`px-2 py-1 rounded text-xs ${((appointment as any).paymentStatus === 'paid') ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+            {((appointment as any).paymentStatus === 'paid') ? 'Paid' : 'Not paid'}
+          </span>
+        </div>
       )
     },
     {
@@ -432,6 +452,17 @@ export const AppointmentManagement: React.FC = () => {
                   { value: 'scheduled', label: 'Scheduled' },
                   { value: 'completed', label: 'Completed' },
                   { value: 'cancelled', label: 'Cancelled' },
+                ]}
+                className="w-full"
+              />
+              <Select
+                label="Payment Status"
+                name="paymentStatus"
+                value={(formData as any).paymentStatus || 'not_paid'}
+                onChange={(e) => setFormData({ ...formData, paymentStatus: e.target.value })}
+                options={[
+                  { value: 'paid', label: 'Paid' },
+                  { value: 'not_paid', label: 'Not paid' },
                 ]}
                 className="w-full"
               />

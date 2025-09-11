@@ -83,6 +83,12 @@ class Patient(models.Model):
     emergency_contact_phone = models.CharField(max_length=20)
     emergency_contact_relationship = models.CharField(max_length=50)
     medical_history = models.TextField(blank=True, null=True)
+    # Payment status for patient-level billing (e.g., upfront registration fees)
+    PAYMENT_STATUS_CHOICES = [
+        ('paid', 'Paid'),
+        ('not_paid', 'Not Paid'),
+    ]
+    payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='not_paid')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -144,6 +150,11 @@ class Appointments(models.Model):
         ('completed', 'Completed'),
         ('canceled', 'Canceled'),
     ], default='scheduled')
+    PAYMENT_STATUS_CHOICES = [
+        ('paid', 'Paid'),
+        ('not_paid', 'Not Paid'),
+    ]
+    payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='not_paid')
 
 
 class Sale(models.Model):

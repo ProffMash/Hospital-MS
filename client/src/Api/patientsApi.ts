@@ -13,6 +13,8 @@ export interface Patient {
   emergency_contact_phone: string;
   emergency_contact_relationship: string;
   medical_history: string | null;
+  // payment status: 'paid' | 'not_paid'
+  payment_status?: 'paid' | 'not_paid';
   created_at: string;
   // optional fields the server may return
   updated_at?: string;

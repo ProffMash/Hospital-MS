@@ -228,6 +228,8 @@ export const useHospitalStore = create<HospitalStore>()(
               type: 'consultation',
               reason: a.reason,
               status: a.status === 'canceled' ? 'cancelled' : a.status,
+              // map backend appointment payment_status
+              paymentStatus: (a as any).payment_status ?? 'not_paid',
               createdAt: d.toISOString(),
               updatedAt: d.toISOString(),
             } as Appointment;
@@ -249,7 +251,9 @@ export const useHospitalStore = create<HospitalStore>()(
             // provide full HH:MM:SS to satisfy DRF TimeField parsing
             time: dateTime.toISOString().split('T')[1].slice(0,8),
             reason: appointment.reason,
-            status: appointment.status || 'scheduled'
+            status: appointment.status || 'scheduled',
+            // include payment status when creating if provided
+            payment_status: (appointment as any).paymentStatus ?? undefined,
           } as any;
           const resp = await apiCreateAppointment(payload);
           const d = new Date(resp.date);
@@ -265,6 +269,7 @@ export const useHospitalStore = create<HospitalStore>()(
             type: appointment.type || 'consultation',
             reason: resp.reason,
             status: resp.status === 'canceled' ? 'cancelled' : resp.status,
+            paymentStatus: (resp as any).payment_status ?? 'not_paid',
             createdAt: d.toISOString(),
             updatedAt: d.toISOString(),
           };
@@ -288,6 +293,7 @@ export const useHospitalStore = create<HospitalStore>()(
           if (appointment.status) payload.status = appointment.status === 'cancelled' ? 'canceled' : appointment.status;
           if ((appointment as any).doctorId) payload.doctor = Number((appointment as any).doctorId);
           if ((appointment as any).patientId) payload.patient = Number((appointment as any).patientId);
+          if ((appointment as any).paymentStatus) payload.payment_status = (appointment as any).paymentStatus;
 
           const resp = await apiUpdateAppointment(idNum, payload);
           const d = new Date(resp.date);
@@ -303,6 +309,7 @@ export const useHospitalStore = create<HospitalStore>()(
             type: (appointment.type as Appointment['type']) || 'consultation',
             reason: resp.reason,
             status: resp.status === 'canceled' ? 'cancelled' : resp.status,
+            paymentStatus: (resp as any).payment_status ?? 'not_paid',
             createdAt: d.toISOString(),
             updatedAt: d.toISOString(),
           };

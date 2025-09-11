@@ -8,6 +8,8 @@ export interface Appointment {
   time: string; // HH:MM:SS
   reason: string;
   status: 'scheduled' | 'completed' | 'canceled';
+  // payment status for appointment
+  payment_status?: 'paid' | 'not_paid';
 }
 
 // Fetch all appointments (Read)
