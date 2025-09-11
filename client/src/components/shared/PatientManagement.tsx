@@ -272,6 +272,28 @@ export const PatientManagement: React.FC = () => {
     exportData(dataToExport, 'patients-report', format, 'Patients Report');
   };
 
+  // Export a single patient's details as a printable PDF
+  const handleExportPatient = (patient: Patient) => {
+    const dataToExport = [
+      {
+        'Full Name': `${patient.firstName} ${patient.lastName}`,
+        'Email': patient.email || 'N/A',
+        'Phone': patient.phone || 'N/A',
+        'Date of Birth': formatDate(patient.dateOfBirth),
+        'Gender': patient.gender || 'N/A',
+        'Address': patient.address || 'N/A',
+        'Emergency Contact': patient.emergencyContact || 'N/A',
+        'Emergency Phone': patient.emergencyPhone || 'N/A',
+        'Emergency Relationship': (patient as any).emergencyRelationship || 'N/A',
+        'Medical History': patient.medicalHistory || 'N/A',
+        'Created': formatDate(patient.createdAt),
+        'Updated': formatDate(patient.updatedAt),
+      }
+    ];
+
+    exportData(dataToExport, `patient-${patient.id}`, 'pdf', `Patient — ${patient.firstName} ${patient.lastName}`);
+  };
+
   const columns = [
     {
       key: 'name',
@@ -306,6 +328,14 @@ export const PatientManagement: React.FC = () => {
             leftIcon={<Search className="w-3 h-3" />}
           >
             View
+          </Button>
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => handleExportPatient(patient)}
+            leftIcon={<Download className="w-3 h-3" />}
+          >
+            Export PDF
           </Button>
           <Button
             size="small"
