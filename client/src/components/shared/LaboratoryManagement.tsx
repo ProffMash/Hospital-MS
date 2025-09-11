@@ -467,6 +467,40 @@ export const Laboratory: React.FC = () => {
     exportData(dataToExport, filename, format, title);
   };
 
+  // Export a single lab order as PDF
+  const handleExportOrder = (order: any) => {
+    const patient = patients.find(p => p.id === order.patientId);
+    const doctor = staff.find(s => s.id === order.doctorId);
+    const tests = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).filter(Boolean).join(', ');
+    const dataToExport = [
+      {
+        'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
+        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : ((order as any).doctor_name || 'Unknown'),
+        'Tests': tests || (order.tests || '—'),
+        'Notes': order.notes || (order as any).notes || '—',
+        'Status': order.status,
+        'Order Date': formatDate(order.orderDate)
+      }
+    ];
+    exportData(dataToExport, `lab-order-${order.id}`, 'pdf', `Lab Order — ${patient ? `${patient.firstName} ${patient.lastName}` : order.id}`);
+  };
+
+  // Export a single lab result as PDF
+  const handleExportResult = (result: any) => {
+    const order = labOrders.find(o => o.id === result.orderId);
+    const patient = order ? patients.find(p => p.id === order.patientId) : null;
+    const dataToExport = [
+      {
+        'Test': (result as any).testName || labTests.find(t => t.id === result.testId)?.name || 'Unknown',
+        'Patient': (result as any).patientName || (patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown'),
+        'Result': result.value,
+        'Status': result.status,
+        'Date': formatDate(result.completedAt)
+      }
+    ];
+    exportData(dataToExport, `lab-result-${result.id}`, 'pdf', `Lab Result — ${patient ? `${patient.firstName} ${patient.lastName}` : result.id}`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
@@ -585,6 +619,14 @@ export const Laboratory: React.FC = () => {
           </Button>
           <Button
             size="small"
+            variant="secondary"
+            onClick={() => handleExportOrder(order)}
+            leftIcon={<Download className="w-3 h-3" />}
+          >
+            Export PDF
+          </Button>
+          <Button
+            size="small"
             variant="danger"
             onClick={() => handleDeleteOrder(order.id)}
             leftIcon={<Trash2 className="w-3 h-3" />}
@@ -648,6 +690,14 @@ export const Laboratory: React.FC = () => {
             leftIcon={<Edit className="w-3 h-3" />}
           >
             Edit
+          </Button>
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => handleExportResult(result)}
+            leftIcon={<Download className="w-3 h-3" />}
+          >
+            Export PDF
           </Button>
           <Button
             size="small"

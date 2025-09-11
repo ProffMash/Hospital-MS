@@ -153,6 +153,25 @@ export const AppointmentManagement: React.FC = () => {
   exportData(dataToExport, 'appointments-report', format, 'Appointments Report');
   };
 
+  // Export a single appointment as a printable PDF
+  const handleExportAppointment = (appointment: Appointment) => {
+    const patient = patients.find(p => p.id === appointment.patientId);
+    const doctor = staff.find(s => s.id === appointment.doctorId);
+    const dataToExport = [
+      {
+        'Date': formatDate(appointment.date),
+        'Time': formatTime(appointment.time),
+        'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
+        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown',
+        'Status': appointment.status,
+        'Reason': appointment.reason || 'N/A',
+        'Created': formatDate(appointment.createdAt)
+      }
+    ];
+
+    exportData(dataToExport, `appointment-${appointment.id}`, 'pdf', `Appointment — ${patient ? `${patient.firstName} ${patient.lastName}` : appointment.patientId}`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'scheduled': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
@@ -255,6 +274,14 @@ export const AppointmentManagement: React.FC = () => {
             leftIcon={<Edit className="w-3 h-3" />}
           >
             Edit
+          </Button>
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => handleExportAppointment(appointment)}
+            leftIcon={<Download className="w-3 h-3" />}
+          >
+            Export PDF
           </Button>
           <Button
             size="small"

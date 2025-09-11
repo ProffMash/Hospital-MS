@@ -255,6 +255,26 @@ export const Diagnoses: React.FC = () => {
     exportData(dataToExport, 'diagnoses-report', format, 'Diagnoses Report');
   };
 
+  // Export a single diagnosis as a printable PDF
+  const handleExportDiagnosis = (diagnosis: ApiDiagnosis) => {
+    const patient = patients.find(p => String(p.id) === String(diagnosis.patient));
+    const doctor = staff.find(s => String(s.id) === String(diagnosis.doctor));
+    const dataToExport = [
+      {
+        'Date': formatDate(diagnosis.created_at),
+        'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
+        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown',
+        'Symptoms': diagnosis.symptoms,
+        'Diagnosis': diagnosis.diagnosis,
+        'Treatment Plan': diagnosis.treatment_plan || '',
+        'Medications': (diagnosis.prescribed_medicines || []).map(m => m.name).join(', ') || 'None',
+        'Notes': diagnosis.additional_notes || ''
+      }
+    ];
+
+    exportData(dataToExport, `diagnosis-${diagnosis.id}`, 'pdf', `Diagnosis — ${patient ? `${patient.firstName} ${patient.lastName}` : diagnosis.patient}`);
+  };
+
   const columns = [
     {
       key: 'patient',
@@ -343,6 +363,14 @@ export const Diagnoses: React.FC = () => {
             leftIcon={<Edit className="w-3 h-3" />}
           >
             Edit
+          </Button>
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => handleExportDiagnosis(diagnosis)}
+            leftIcon={<Download className="w-3 h-3" />}
+          >
+            Export PDF
           </Button>
           <Button
             size="small"
