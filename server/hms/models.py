@@ -29,6 +29,7 @@ class User(AbstractUser):
         ('admin', 'Admin'),
         ('doctor', 'Doctor'),
         ('pharmacist', 'Pharmacist'),
+        ('receptionist', 'Receptionist'),
     )
     role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='admin')
     name = models.CharField(max_length=150)
@@ -56,7 +57,7 @@ class User(AbstractUser):
 
     @property
     def is_staff(self):
-        return self.role in ['admin', 'doctor', 'pharmacist'] or self.is_superuser
+        return self.role in ['admin', 'doctor', 'pharmacist', 'receptionist'] or self.is_superuser
 
     def __str__(self):
         return self.email

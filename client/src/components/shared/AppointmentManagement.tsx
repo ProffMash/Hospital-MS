@@ -59,7 +59,20 @@ export const AppointmentManagement: React.FC = () => {
     });
   }, [appointments, patients, staff, searchTerm, filterStatus, filterDate, user]);
 
-  const doctors = staff.filter(s => s.role === 'doctor');
+  // Be robust to different role casing or backend shapes: treat any role containing 'doctor' (case-insensitive) as a doctor
+  const doctors = staff.filter(s => String(s.role || '').toLowerCase().includes('doctor'));
+
+  // Helper to build a readable doctor label from staff entry supporting multiple shapes
+  const formatDoctorLabel = (s: any) => {
+    if (!s) return 'Unknown Doctor';
+    if (s.name && String(s.name).trim()) return `Dr. ${String(s.name).trim()}`;
+    const fn = s.firstName || s.first_name || '';
+    const ln = s.lastName || s.last_name || '';
+    const full = `${fn} ${ln}`.trim();
+    if (full) return `Dr. ${full}`;
+    if (s.email) return `Dr. ${s.email}`;
+    return `Dr. ${s.id ?? 'Unknown'}`;
+  };
 
   const handleOpenModal = (appointment?: Appointment) => {
     if (appointment) {
@@ -75,9 +88,11 @@ export const AppointmentManagement: React.FC = () => {
       });
     } else {
       setEditingAppointment(null);
+      const currentIsDoctor = String(user?.role || '').toLowerCase() === 'doctor';
       setFormData({
         patientId: '',
-        doctorId: user?.role === 'doctor' ? user.id : '',
+        // Default to current user when they are a doctor (case-insensitive)
+        doctorId: currentIsDoctor ? (user?.id ?? '') : '',
         date: '',
         time: '',
   reason: '',
@@ -148,7 +163,7 @@ export const AppointmentManagement: React.FC = () => {
         'Date': formatDate(appointment.date),
         'Time': formatTime(appointment.time),
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
-        'Doctor': doctor ? `${doctor.firstName} ${doctor.lastName}` : 'Unknown',
+        'Doctor': doctor ? formatDoctorLabel(doctor) : 'Unknown',
             'Status': appointment.status,
             'Payment Status': (appointment as any).paymentStatus || 'not_paid',
             'Reason': appointment.reason,
@@ -168,7 +183,7 @@ export const AppointmentManagement: React.FC = () => {
         'Date': formatDate(appointment.date),
         'Time': formatTime(appointment.time),
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
-        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown',
+        'Doctor': doctor ? formatDoctorLabel(doctor) : 'Unknown',
   'Status': appointment.status,
   'Payment Status': (appointment as any).paymentStatus || 'not_paid',
   'Reason': appointment.reason || 'N/A',
@@ -232,7 +247,7 @@ export const AppointmentManagement: React.FC = () => {
       header: 'Doctor',
   render: (_: any, appointment: Appointment) => {
         const doctor = staff.find(s => s.id === appointment.doctorId);
-        return doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown Doctor';
+        return doctor ? formatDoctorLabel(doctor) : 'Unknown Doctor';
       }
     },
     {
@@ -277,7 +292,7 @@ export const AppointmentManagement: React.FC = () => {
               Mark Complete
             </Button>
           )}
-          {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+          {user?.role !== 'receptionist' && user?.role !== 'doctor' && appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
             <Button
               size="small"
               variant="danger"
@@ -303,14 +318,16 @@ export const AppointmentManagement: React.FC = () => {
           >
             Export PDF
           </Button>
-          <Button
-            size="small"
-            variant="danger"
-            onClick={() => handleDelete(appointment.id)}
-            leftIcon={<Trash2 className="w-3 h-3" />}
-          >
-            Delete
-          </Button>
+          {user?.role !== 'receptionist' && user?.role !== 'doctor' && (
+            <Button
+              size="small"
+              variant="danger"
+              onClick={() => handleDelete(appointment.id)}
+              leftIcon={<Trash2 className="w-3 h-3" />}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       )
     }
@@ -421,11 +438,20 @@ export const AppointmentManagement: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, doctorId: e.target.value })}
               options={doctors.map(doctor => ({
                 value: doctor.id,
-                label: `Dr. ${doctor.firstName} ${doctor.lastName}`
+                // Support both normalized { firstName, lastName } and legacy `name` field
+                label: ((): string => {
+                  const d: any = doctor;
+                  if (d.name) return `Dr. ${d.name}`;
+                  const fn = d.firstName || '';
+                  const ln = d.lastName || '';
+                  const full = `${fn} ${ln}`.trim();
+                  return full ? `Dr. ${full}` : `Dr. ${d.email ?? d.id}`;
+                })()
               }))}
               placeholder="Select doctor"
               required
-              disabled={user?.role === 'doctor'}
+              // disable choosing doctor only when the current user is a doctor (case-insensitive)
+              disabled={String(user?.role || '').toLowerCase() === 'doctor'}
             />
             <Input
               label="Date"

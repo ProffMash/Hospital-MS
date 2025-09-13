@@ -96,7 +96,7 @@ export const StaffManagement: React.FC = () => {
             lastName: names.slice(1).join(' ') || '',
             email: formData.email,
             phone: formData.phone,
-            role: formData.role as 'admin' | 'doctor' | 'pharmacist',
+            role: formData.role as 'admin' | 'doctor' | 'pharmacist' | 'receptionist',
             address: formData.address,
             specialization: formData.specialization,
             updatedAt: new Date().toISOString(),
@@ -129,7 +129,7 @@ export const StaffManagement: React.FC = () => {
             lastName: names.slice(1).join(' ') || '',
             email: formData.email,
             phone: formData.phone,
-            role: formData.role as 'admin' | 'doctor' | 'pharmacist',
+            role: formData.role as 'admin' | 'doctor' | 'pharmacist' | 'receptionist',
             address: formData.address,
             specialization: formData.specialization,
           };
@@ -164,16 +164,17 @@ export const StaffManagement: React.FC = () => {
       try {
         const users = await staffApi.fetchUsers();
         // map backend User -> local Staff shape where possible
-        const mapped: Staff[] = users.map((u) => {
+          const mapped: Staff[] = users.map((u) => {
           const names = (u.name || '').split(' ');
-          const role = u.role === 'pharmacist' ? 'pharmacist' : u.role === 'doctor' ? 'doctor' : 'admin';
+          const rr = (u.role || '').toLowerCase();
+          const role = rr === 'pharmacist' ? 'pharmacist' : rr === 'doctor' ? 'doctor' : rr === 'receptionist' ? 'receptionist' : 'admin';
           return {
             id: String(u.id),
             firstName: names[0] || '',
             lastName: names.slice(1).join(' ') || '',
             email: u.email,
             phone: u.phone || '',
-            role: role as 'admin' | 'doctor' | 'pharmacist',
+            role: role as 'admin' | 'doctor' | 'pharmacist' | 'receptionist',
             address: u.address || '',
             specialization: u.specialization || undefined,
             licenseNumber: undefined,
@@ -210,7 +211,7 @@ export const StaffManagement: React.FC = () => {
         <div className="flex items-center space-x-3">
           <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
             <span className="text-white font-medium text-xs">
-              {member.firstName.charAt(0)}{member.lastName.charAt(0)}
+              {(member.firstName || '').charAt(0)}{(member.lastName || '').charAt(0)}
             </span>
           </div>
           <div>
@@ -275,7 +276,8 @@ export const StaffManagement: React.FC = () => {
   const roleOptions = [
   { value: 'doctor', label: 'Doctor' },
   { value: 'pharmacist', label: 'Pharmacist' },
-  { value: 'admin', label: 'Admin' }
+   { value: 'receptionist', label: 'Receptionist' },
+   { value: 'admin', label: 'Admin' }
   ];
 
   // department options removed — address field is free text now

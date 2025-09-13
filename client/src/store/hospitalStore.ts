@@ -6,6 +6,13 @@ import {
   updateAppointment as apiUpdateAppointment,
   deleteAppointment as apiDeleteAppointment,
 } from '../Api/appointmentApi';
+import { fetchPatients as apiFetchPatients, createPatient as apiCreatePatient, updatePatient as apiUpdatePatient, deletePatient as apiDeletePatient } from '../Api/patientsApi';
+import { fetchUsers as apiFetchUsers } from '../Api/staffApi';
+import { fetchMedicines as apiFetchMedicines } from '../Api/medicineApi';
+import { fetchDiagnoses as apiFetchDiagnoses } from '../Api/diagnosisApi';
+import { fetchLabOrders as apiFetchLabOrders } from '../Api/labOrdersApi';
+import { fetchLabResults as apiFetchLabResults } from '../Api/labResultsApi';
+import { fetchSales as apiFetchSales } from '../Api/salesApi';
 import type { 
   Patient, 
   Staff, 
@@ -91,6 +98,8 @@ interface HospitalStore {
   sales: Sale[];
   addSale: (sale: NewSale) => void;
   updateSale: (id: string, sale: Partial<Sale>) => void;
+  // Synchronize store from server (fetch all resources and replace local state)
+  syncFromServer: () => Promise<void>;
 }
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -134,8 +143,8 @@ export const useHospitalStore = create<HospitalStore>()(
             priority: o.priority ?? 'routine',
             orderDate,
             notes: o.notes ?? '',
-            createdAt: o.created_at ?? o.createdAt ?? new Date().toISOString(),
-            updatedAt: o.updated_at ?? o.updatedAt ?? new Date().toISOString(),
+            createdAt: o.created_at ?? (o as any).createdAt ?? new Date().toISOString(),
+            updatedAt: o.updated_at ?? (o as any).updatedAt ?? new Date().toISOString(),
           } as any;
         });
 
@@ -147,34 +156,95 @@ export const useHospitalStore = create<HospitalStore>()(
       setPatients: (patients) => {
         set(() => ({ patients }));
       },
-      addPatient: (patient) => {
-        set((state) => ({
-          patients: [
-            ...state.patients,
-            {
-              ...patient,
-              id: generateId(),
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            },
-          ],
-        }));
+      addPatient: async (patient) => {
+        try {
+          // map UI shape to API expected fields
+          const payload: any = {
+            first_name: (patient as any).firstName ?? (patient as any).first_name,
+            last_name: (patient as any).lastName ?? (patient as any).last_name,
+            email: (patient as any).email,
+            phone: (patient as any).phone,
+            date_of_birth: (patient as any).dateOfBirth ?? (patient as any).date_of_birth,
+            gender: (patient as any).gender,
+            address: (patient as any).address,
+            emergency_contact_name: (patient as any).emergencyContact ?? (patient as any).emergency_contact_name,
+            emergency_contact_phone: (patient as any).emergencyPhone ?? (patient as any).emergency_contact_phone,
+            emergency_contact_relationship: (patient as any).emergencyRelationship ?? (patient as any).emergency_contact_relationship,
+            medical_history: (patient as any).medicalHistory ?? null,
+          };
+          const resp = await apiCreatePatient(payload);
+          const newPatient: Patient = {
+            id: String(resp.id),
+            firstName: resp.first_name ?? '',
+            lastName: resp.last_name ?? '',
+            email: resp.email ?? '',
+            phone: resp.phone ?? '',
+            dateOfBirth: resp.date_of_birth ?? '',
+            gender: ((resp.gender as Patient['gender']) ?? 'other'),
+            address: resp.address ?? '',
+            emergencyContact: resp.emergency_contact_name ?? '',
+            emergencyPhone: resp.emergency_contact_phone ?? '',
+            emergencyRelationship: resp.emergency_contact_relationship ?? '',
+            medicalHistory: resp.medical_history ?? undefined,
+            paymentStatus: (resp as any).payment_status ?? 'not_paid',
+            createdAt: resp.created_at ?? new Date().toISOString(),
+            updatedAt: resp.updated_at ?? (resp as any).updatedAt ?? new Date().toISOString(),
+          };
+
+          set((state) => ({ patients: [...state.patients, newPatient] }));
+        } catch (err) {
+          console.error('Failed to create patient', err);
+        }
       },
 
-      updatePatient: (id, patient) => {
-        set((state) => ({
-          patients: state.patients.map((p) =>
-            p.id === id
-              ? { ...p, ...patient, updatedAt: new Date().toISOString() }
-              : p
-          ),
-        }));
+      updatePatient: async (id, patient) => {
+        try {
+          const idNum = Number(id);
+          const payload: any = {};
+          if ((patient as any).firstName) payload.first_name = (patient as any).firstName;
+          if ((patient as any).lastName) payload.last_name = (patient as any).lastName;
+          if ((patient as any).email) payload.email = (patient as any).email;
+          if ((patient as any).phone) payload.phone = (patient as any).phone;
+          if ((patient as any).dateOfBirth) payload.date_of_birth = (patient as any).dateOfBirth;
+          if ((patient as any).gender) payload.gender = (patient as any).gender;
+          if ((patient as any).address) payload.address = (patient as any).address;
+          if ((patient as any).medicalHistory) payload.medical_history = (patient as any).medicalHistory;
+
+          const resp = await apiUpdatePatient(idNum, payload);
+          set((state) => ({
+            patients: state.patients.map((p) =>
+              p.id === String(resp.id)
+                ? {
+                    ...p,
+                    firstName: resp.first_name ?? p.firstName,
+                    lastName: resp.last_name ?? p.lastName,
+                    email: resp.email ?? p.email,
+                    phone: resp.phone ?? p.phone,
+                    dateOfBirth: resp.date_of_birth ?? p.dateOfBirth,
+                    gender: ((resp.gender as Patient['gender']) ?? p.gender),
+                    address: resp.address ?? p.address,
+                    emergencyContact: resp.emergency_contact_name ?? p.emergencyContact,
+                    emergencyPhone: resp.emergency_contact_phone ?? p.emergencyPhone,
+                    emergencyRelationship: resp.emergency_contact_relationship ?? p.emergencyRelationship,
+                    medicalHistory: resp.medical_history ?? p.medicalHistory,
+                    updatedAt: resp.updated_at ?? new Date().toISOString(),
+                  }
+                : p
+            ),
+          }));
+        } catch (err) {
+          console.error('Failed to update patient', err);
+        }
       },
 
-      deletePatient: (id) => {
-        set((state) => ({
-          patients: state.patients.filter((p) => p.id !== id),
-        }));
+      deletePatient: async (id) => {
+        try {
+          const idNum = Number(id);
+          await apiDeletePatient(idNum);
+          set((state) => ({ patients: state.patients.filter((p) => p.id !== id) }));
+        } catch (err) {
+          console.error('Failed to delete patient', err);
+        }
       },
 
       // Staff operations
@@ -498,6 +568,166 @@ export const useHospitalStore = create<HospitalStore>()(
               : s
           ),
         }));
+      },
+      // Fetch many resources from server and replace local state so different devices/browsers see same data
+      syncFromServer: async () => {
+        try {
+          // Fetch in parallel
+          const [patients, users, medicines, diagnoses, labOrders, labResults, sales, appointments] = await Promise.all([
+            apiFetchPatients().catch((e) => {
+              console.warn('fetchPatients failed', e);
+              return [] as any;
+            }),
+            apiFetchUsers().catch((e) => {
+              console.warn('fetchUsers failed', e);
+              return [] as any;
+            }),
+            apiFetchMedicines().catch((e) => {
+              console.warn('fetchMedicines failed', e);
+              return [] as any;
+            }),
+            apiFetchDiagnoses().catch((e) => {
+              console.warn('fetchDiagnoses failed', e);
+              return [] as any;
+            }),
+            apiFetchLabOrders().catch((e) => {
+              console.warn('fetchLabOrders failed', e);
+              return [] as any;
+            }),
+            apiFetchLabResults().catch((e) => {
+              console.warn('fetchLabResults failed', e);
+              return [] as any;
+            }),
+            apiFetchSales().catch((e) => {
+              console.warn('fetchSales failed', e);
+              return [] as any;
+            }),
+            apiFetchAppointments().catch((e) => {
+              console.warn('fetchAppointments failed', e);
+              return [] as any;
+            }),
+          ]);
+
+          // Normalize and set the state pieces we support
+          const normalizedPatients = (patients || []).map((p: any) => ({
+            id: String(p.id),
+            firstName: p.first_name ?? p.firstName ?? '',
+            lastName: p.last_name ?? p.lastName ?? '',
+            email: p.email ?? '',
+            phone: p.phone ?? '',
+            dateOfBirth: p.date_of_birth ?? p.dateOfBirth ?? '',
+            gender: (p.gender as any) ?? 'other',
+            address: p.address ?? '',
+            emergencyContact: p.emergency_contact_name ?? p.emergencyContact ?? '',
+            emergencyPhone: p.emergency_contact_phone ?? p.emergencyPhone ?? '',
+            emergencyRelationship: p.emergency_contact_relationship ?? p.emergencyRelationship ?? '',
+            medicalHistory: p.medical_history ?? null,
+            paymentStatus: p.payment_status ?? p.paymentStatus ?? 'not_paid',
+            createdAt: p.created_at ?? (p as any).createdAt ?? new Date().toISOString(),
+            updatedAt: p.updated_at ?? (p as any).updatedAt ?? new Date().toISOString(),
+          } as any));
+
+          const normalizedStaff = (users || []).map((u: any) => ({
+            id: String(u.id),
+            name: u.name ?? u.username ?? '',
+            email: u.email ?? '',
+            role: (u.role ?? u.groups ?? u.is_staff) ? (u.role ?? (u.is_staff ? 'staff' : '')) : '',
+            specialization: u.specialization ?? null,
+            phone: u.phone ?? null,
+            address: u.address ?? null,
+            createdAt: u.created_at ?? u.createdAt ?? new Date().toISOString(),
+            updatedAt: u.updated_at ?? u.updatedAt ?? new Date().toISOString(),
+          } as any));
+
+          const normalizedMedicines = (medicines || []).map((m: any) => ({
+            id: String(m.id),
+            name: m.name,
+            category: m.category,
+            description: m.description,
+            stock: m.stock,
+            price: String(m.price ?? m.unit_price ?? ''),
+            createdAt: m.created_at ?? m.createdAt ?? new Date().toISOString(),
+            updatedAt: m.updated_at ?? m.updatedAt ?? new Date().toISOString(),
+          } as any));
+
+          const normalizedDiagnoses = (diagnoses || []).map((d: any) => ({
+            id: String(d.id),
+            patientId: String(d.patient ?? d.patient_id ?? ''),
+            doctorId: String(d.doctor ?? d.doctor_id ?? ''),
+            summary: d.summary ?? d.description ?? '',
+            createdAt: d.created_at ?? d.createdAt ?? new Date().toISOString(),
+            updatedAt: d.updated_at ?? d.updatedAt ?? new Date().toISOString(),
+          } as any));
+
+          const normalizedLabOrders = (labOrders || []).map((o: any) => {
+            const patientId = o.patient ?? (o.patient?.id ? String(o.patient.id) : '') ?? '';
+            const doctorId = o.doctor ?? (o.doctor?.id ? String(o.doctor.id) : null) ?? null;
+            const testIds = o.tests ?? o.testIds ?? [];
+            return {
+              id: String(o.id),
+              patientId: String(patientId),
+              doctorId: doctorId ? String(doctorId) : '',
+              testIds: typeof testIds === 'string' ? testIds.split(',').map((s: string) => s.trim()) : testIds,
+              status: o.status ?? 'pending',
+              priority: o.priority ?? 'routine',
+              orderDate: o.created_at ?? o.order_date ?? new Date().toISOString(),
+              notes: o.notes ?? '',
+              createdAt: o.created_at ?? new Date().toISOString(),
+              updatedAt: o.updated_at ?? new Date().toISOString(),
+            } as any;
+          });
+
+          const normalizedLabResults = (labResults || []).map((r: any) => ({
+            id: String(r.id),
+            labOrderId: r.lab_order?.id ?? r.lab_order ?? null,
+            result: r.result ?? null,
+            createdAt: r.created_at ?? new Date().toISOString(),
+            updatedAt: r.updated_at ?? r.updatedAt ?? new Date().toISOString(),
+          } as any));
+
+          const normalizedSales = (sales || []).map((s: any) => ({
+            id: String(s.id),
+            items: s.items ?? s.line_items ?? [],
+            total: Number(s.total ?? s.amount ?? 0),
+            saleType: s.sale_type ?? s.type ?? null,
+            createdAt: s.created_at ?? new Date().toISOString(),
+            updatedAt: s.updated_at ?? new Date().toISOString(),
+          } as any));
+
+          // appointments already mapped by existing fetcher but ensure string ids
+          const normalizedAppointments = (appointments || []).map((a: any) => {
+            const d = new Date(a.date);
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            return {
+              id: String(a.id),
+              patientId: String(a.patient ?? a.patient_id ?? ''),
+              doctorId: String(a.doctor ?? a.doctor_id ?? ''),
+              date: d.toISOString().split('T')[0],
+              time: `${hh}:${mm}`,
+              duration: a.duration ?? 30,
+              type: a.type ?? 'consultation',
+              reason: a.reason ?? '',
+              status: a.status === 'canceled' ? 'cancelled' : (a.status ?? 'scheduled'),
+              paymentStatus: (a as any).payment_status ?? 'not_paid',
+              createdAt: d.toISOString(),
+              updatedAt: d.toISOString(),
+            } as Appointment;
+          });
+
+          set(() => ({
+            patients: normalizedPatients,
+            staff: normalizedStaff,
+            medicines: normalizedMedicines,
+            diagnoses: normalizedDiagnoses,
+            labOrders: normalizedLabOrders,
+            labResults: normalizedLabResults,
+            sales: normalizedSales,
+            appointments: normalizedAppointments,
+          }));
+        } catch (err) {
+          console.error('syncFromServer failed', err);
+        }
       },
     }),
     {

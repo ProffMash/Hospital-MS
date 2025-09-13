@@ -33,13 +33,18 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 // Fetch a single user by ID
-export async function fetchUserById(id: number): Promise<User> {
-  const response = await api.get<User>(`users/${id}/`);
+export async function fetchUserById(id: number | string): Promise<User> {
+  const idStr = String(id);
+  const idNum = Number(idStr);
+  if (idStr === '' || Number.isNaN(idNum)) {
+    throw new Error(`fetchUserById: invalid id provided: ${id}`);
+  }
+  const response = await api.get<User>(`users/${idStr}/`);
   return response.data;
 }
 
 // Register / create a new user
-// NOTE: backend may return a user object or a message; adapt callers if needed
+// NOTE: backend may return a user object or a message
 export async function registerUser(payload: RegisterPayload): Promise<User | any> {
   try {
     const response = await api.post(`${AUTH_URL}register/`, payload);
@@ -54,14 +59,24 @@ export async function registerUser(payload: RegisterPayload): Promise<User | any
 }
 
 // Update an existing user (partial)
-export async function updateUser(id: number, payload: Partial<User>): Promise<User> {
-  const response = await api.patch<User>(`users/${id}/`, payload);
+export async function updateUser(id: number | string, payload: Partial<User>): Promise<User> {
+  const idStr = String(id);
+  const idNum = Number(idStr);
+  if (idStr === '' || Number.isNaN(idNum)) {
+    throw new Error(`updateUser: invalid id provided: ${id}`);
+  }
+  const response = await api.patch<User>(`users/${idStr}/`, payload);
   return response.data;
 }
 
 // Delete a user
-export async function deleteUser(id: number): Promise<void> {
-  await api.delete(`users/${id}/`);
+export async function deleteUser(id: number | string): Promise<void> {
+  const idStr = String(id);
+  const idNum = Number(idStr);
+  if (idStr === '' || Number.isNaN(idNum)) {
+    throw new Error(`deleteUser: invalid id provided: ${id}`);
+  }
+  await api.delete(`users/${idStr}/`);
 }
 
 export default {

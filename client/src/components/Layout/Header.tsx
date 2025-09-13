@@ -15,6 +15,7 @@ export const Header: React.FC = () => {
             {user?.role === 'admin' && 'Admin Dashboard'}
             {user?.role === 'doctor' && 'Doctor Dashboard'}
             {user?.role === 'pharmacist' && 'Pharmacy Dashboard'}
+            {user?.role === 'receptionist' && 'Reception Dashboard'}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Welcome back, {user?.name}

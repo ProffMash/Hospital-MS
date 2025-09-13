@@ -30,15 +30,15 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { icon: Home, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'doctor', 'pharmacist'] },
-  { icon: UserPlus, label: 'Patients', path: '/patients', roles: ['admin', 'doctor'] },
+  { icon: Home, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'doctor', 'pharmacist', 'receptionist'] },
+  { icon: UserPlus, label: 'Patients', path: '/patients', roles: ['admin', 'doctor', 'receptionist'] },
   { icon: Users, label: 'Staff', path: '/staff', roles: ['admin'] },
-  { icon: Calendar, label: 'Appointments', path: '/appointments', roles: ['admin', 'doctor'] },
+  { icon: Calendar, label: 'Appointments', path: '/appointments', roles: ['admin', 'doctor', 'receptionist'] },
   { icon: FileText, label: 'Diagnoses', path: '/diagnoses', roles: ['admin', 'doctor'] },
   { icon: TestTube, label: 'Laboratory', path: '/laboratory', roles: ['admin', 'doctor'] },
   { icon: Package, label: 'Medicine Inventory', path: '/inventory', roles: ['admin', 'pharmacist'] },
   { icon: ShoppingCart, label: 'Sales', path: '/sales', roles: ['admin', 'pharmacist'] },
-  { icon: User, label: 'Profile', path: '/profile', roles: ['admin', 'doctor', 'pharmacist'] },
+  { icon: User, label: 'Profile', path: '/profile', roles: ['admin', 'doctor', 'pharmacist', 'receptionist'] },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
@@ -107,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-gray-400 to-gray-600 dark:from-gray-600 dark:to-gray-800 rounded-full flex items-center justify-center shadow-sm">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {user.name.charAt(0).toUpperCase()}
+                {(user.name || '').charAt(0).toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">

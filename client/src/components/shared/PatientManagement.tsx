@@ -15,6 +15,7 @@ import { Input } from '../UI/Input';
 import { Table } from '../UI/Table';
 import { Modal } from '../UI/Modal';
 import { Select } from '../UI/Select';
+import { useAuthStore } from '../../store/authStore';
 import { formatDate } from '../../utils/dateUtils';
 import { exportData } from '../../utils/exportUtils';
 
@@ -308,7 +309,7 @@ export const PatientManagement: React.FC = () => {
     exportData(dataToExport, `patient-${patient.id}`, 'pdf', `Patient — ${patient.firstName} ${patient.lastName}`);
   };
 
-  // payment toggling removed — payment status is set on creation/edit via modal
+  const { user } = useAuthStore();
 
   const columns = [
     {
@@ -364,22 +365,26 @@ export const PatientManagement: React.FC = () => {
           >
             Export PDF
           </Button>
-          <Button
-            size="small"
-            variant="secondary"
-            onClick={() => handleOpenModal(patient)}
-            leftIcon={<Edit className="w-3 h-3" />}
-          >
-            Edit
-          </Button>
-          <Button
-            size="small"
-            variant="danger"
-            onClick={() => handleDelete(patient.id)}
-            leftIcon={<Trash2 className="w-3 h-3" />}
-          >
-            Delete
-          </Button>
+          {user?.role !== 'doctor' && (
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => handleOpenModal(patient)}
+              leftIcon={<Edit className="w-3 h-3" />}
+            >
+              Edit
+            </Button>
+          )}
+          {user?.role !== 'receptionist' && user?.role !== 'doctor' && (
+            <Button
+              size="small"
+              variant="danger"
+              onClick={() => handleDelete(patient.id)}
+              leftIcon={<Trash2 className="w-3 h-3" />}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       )
     }

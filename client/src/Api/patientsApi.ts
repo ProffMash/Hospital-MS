@@ -13,16 +13,14 @@ export interface Patient {
   emergency_contact_phone: string;
   emergency_contact_relationship: string;
   medical_history: string | null;
-  // payment status: 'paid' | 'not_paid'
   payment_status?: 'paid' | 'not_paid';
   created_at: string;
-  // optional fields the server may return
   updated_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
   blood_type?: string | null;
   allergies?: string | null;
 }
-
-// apiClient sets base URL
 
 // Fetch all patients (Read)
 export async function fetchPatients(): Promise<Patient[]> {
@@ -38,7 +36,6 @@ export async function createPatient(patient: Omit<Partial<Patient>, 'id' | 'crea
 
 // Update an existing patient (Update)
 export async function updatePatient(id: number, patient: Partial<Omit<Patient, 'id' | 'created_at'>>): Promise<Patient> {
-  // Use PATCH for partial updates to avoid 400 when server requires all fields on PUT
   const response = await api.patch<Patient>(`patients/${id}/`, patient);
   return response.data;
 }

@@ -8,7 +8,7 @@ export interface User {
   updatedAt: string;
 }
 
-export type UserRole = 'admin' | 'doctor' | 'pharmacist';
+export type UserRole = 'admin' | 'doctor' | 'pharmacist' | 'receptionist';
 
 export interface AuthState {
   user: User | null;
@@ -32,7 +32,6 @@ export interface Patient {
   bloodType?: string;
   allergies?: string;
   medicalHistory?: string;
-  // payment status at patient level
   paymentStatus?: 'paid' | 'not_paid';
   createdAt: string;
   updatedAt: string;
@@ -45,7 +44,7 @@ export interface Staff {
   lastName: string;
   email: string;
   phone: string;
-  role: 'admin' | 'doctor' | 'pharmacist';
+  role: 'admin' | 'doctor' | 'pharmacist' | 'receptionist';
   address: string;
   specialization?: string;
   licenseNumber?: string;
@@ -63,7 +62,6 @@ export interface Appointment {
   duration: number; // in minutes
   type: 'consultation' | 'follow_up' | 'emergency' | 'procedure';
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
-  // payment status for appointment
   paymentStatus?: 'paid' | 'not_paid';
   reason: string;
   notes?: string;
