@@ -2,6 +2,7 @@ import React from 'react';
 import { Bell, Sun, Moon, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { isRole } from '../../utils/roleUtils';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -12,10 +13,10 @@ export const Header: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {user?.role === 'admin' && 'Admin Dashboard'}
-            {user?.role === 'doctor' && 'Doctor Dashboard'}
-            {user?.role === 'pharmacist' && 'Pharmacy Dashboard'}
-            {user?.role === 'receptionist' && 'Reception Dashboard'}
+              {isRole(user, 'admin') && 'Admin Dashboard'}
+              {isRole(user, 'doctor') && 'Doctor Dashboard'}
+              {isRole(user, 'pharmacist') && 'Pharmacy Dashboard'}
+              {isRole(user, 'receptionist') && 'Reception Dashboard'}
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Welcome back, {user?.name}
@@ -54,8 +55,8 @@ export const Header: React.FC = () => {
               <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {user?.name}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                {user?.role}
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                  {isRole(user, user?.role ?? '') ? user?.role : 'Unknown Role'}
               </p>
             </div>
             <button

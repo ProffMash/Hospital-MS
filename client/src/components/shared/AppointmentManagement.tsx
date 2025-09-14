@@ -10,6 +10,7 @@ import { Table } from '../UI/Table';
 import { Modal } from '../UI/Modal';
 import { Select } from '../UI/Select';
 import { formatDate, formatTime } from '../../utils/dateUtils';
+import { isRole } from '../../utils/roleUtils';
 import { exportData } from '../../utils/exportUtils'; // will be used correctly below
 
 export const AppointmentManagement: React.FC = () => {
@@ -52,8 +53,8 @@ export const AppointmentManagement: React.FC = () => {
       const matchesStatus = !filterStatus || appointment.status === filterStatus;
       const matchesDate = !filterDate || appointment.date === filterDate;
       
-      // Filter by doctor for doctor role
-      const matchesDoctor = user?.role !== 'doctor' || appointment.doctorId === user.id;
+  // Filter by doctor for doctor role (use helper for case-insensitive check)
+  const matchesDoctor = !isRole(user, 'doctor') || appointment.doctorId === user?.id;
       
       return matchesSearch && matchesStatus && matchesDate && matchesDoctor;
     });
@@ -292,7 +293,7 @@ export const AppointmentManagement: React.FC = () => {
               Mark Complete
             </Button>
           )}
-          {user?.role !== 'receptionist' && user?.role !== 'doctor' && appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
+          {(!isRole(user, 'receptionist') && !isRole(user, 'doctor')) && appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
             <Button
               size="small"
               variant="danger"
@@ -318,7 +319,7 @@ export const AppointmentManagement: React.FC = () => {
           >
             Export PDF
           </Button>
-          {user?.role !== 'receptionist' && user?.role !== 'doctor' && (
+          {(!isRole(user, 'receptionist') && !isRole(user, 'doctor')) && (
             <Button
               size="small"
               variant="danger"

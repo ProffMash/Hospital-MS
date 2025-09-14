@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { isRole, roleIncludes } from '../../utils/roleUtils';
 import { Plus, Search, Edit, Download, Clock, CheckCircle, User, Trash2 } from 'lucide-react';
 import { useHospitalStore } from '../../store/hospitalStore';
 import { useAuthStore } from '../../store/authStore';
@@ -10,6 +11,7 @@ import { Table } from '../UI/Table';
 import { Modal } from '../UI/Modal';
 import { Select } from '../UI/Select';
 import { formatDate } from '../../utils/dateUtils';
+import { formatPersonName } from '../../utils/formatUtils';
 import { exportData } from '../../utils/exportUtils';
 import { createLabOrder as apiCreateLabOrder, updateLabOrder as apiUpdateLabOrder, fetchLabOrders as apiFetchLabOrders, deleteLabOrder as apiDeleteLabOrder } from '../../Api/labOrdersApi';
 import {
@@ -130,7 +132,7 @@ export const Laboratory: React.FC = () => {
       );
 
       const matchesStatus = !filterStatus || order.status === filterStatus;
-      const matchesDoctor = user?.role !== 'doctor' || order.doctorId === user.id || (order.doctor && String(order.doctor) === user?.id);
+  const matchesDoctor = !isRole(user, 'doctor') || order.doctorId === user?.id || (order.doctor && String(order.doctor) === user?.id);
 
       return matchesSearch && matchesStatus && matchesDoctor;
     });
@@ -150,7 +152,7 @@ export const Laboratory: React.FC = () => {
     });
   }, [labResults, labOrders, labTests, searchTerm]);
 
-  const doctors = staff.filter(s => s.role === 'doctor');
+  const doctors = staff.filter(s => roleIncludes(s, 'doctor'));
 
   const handleOpenModal = (type: 'order' | 'test' | 'result', item?: any) => {
     setModalType(type);
@@ -175,7 +177,7 @@ export const Laboratory: React.FC = () => {
       } else {
         setOrderFormData({
           patientId: '',
-          doctorId: user?.role === 'doctor' ? user.id : '',
+          doctorId: isRole(user, 'doctor') ? (user?.id ?? '') : '',
           tests: '',
           status: 'pending',
           notes: ''
@@ -439,7 +441,7 @@ export const Laboratory: React.FC = () => {
         const tests = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).filter(Boolean).join(', ');
         return {
           'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
-          'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : ((order as any).doctor_name || 'Unknown'),
+          'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
           'Tests': tests,
           'Notes': order.notes || (order as any).notes || '—',
           'Status': order.status,
@@ -475,7 +477,7 @@ export const Laboratory: React.FC = () => {
     const dataToExport = [
       {
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
-        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : ((order as any).doctor_name || 'Unknown'),
+        'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
         'Tests': tests || (order.tests || '—'),
         'Notes': order.notes || (order as any).notes || '—',
         'Status': order.status,
@@ -549,7 +551,7 @@ export const Laboratory: React.FC = () => {
           const fallback = (order as any).doctor_name;
           return doctor ? (
             <div>
-              <p className="font-medium text-gray-900 dark:text-white">{`Dr. ${doctor.firstName} ${doctor.lastName}`}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{formatPersonName(doctor, 'Dr.')}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">{doctor.email}</p>
             </div>
           ) : (
@@ -858,13 +860,10 @@ export const Laboratory: React.FC = () => {
                   label="Doctor"
                   value={orderFormData.doctorId}
                   onChange={(e) => setOrderFormData({ ...orderFormData, doctorId: e.target.value })}
-                  options={doctors.map(doctor => ({
-                    value: doctor.id,
-                    label: `Dr. ${doctor.firstName} ${doctor.lastName}`
-                  }))}
+                  options={doctors.map(doctor => ({ value: String(doctor.id), label: formatPersonName(doctor, 'Dr.') }))}
                   placeholder="Select doctor"
                   required
-                  disabled={user?.role === 'doctor'}
+                  disabled={isRole(user, 'doctor')}
                 />
                 
               </div>

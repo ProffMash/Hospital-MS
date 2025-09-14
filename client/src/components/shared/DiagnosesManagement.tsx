@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { isRole, roleIncludes } from '../../utils/roleUtils';
 import { Plus, Search, Edit, Download, User, Calendar, Stethoscope, Trash2 } from 'lucide-react';
 import { useHospitalStore } from '../../store/hospitalStore';
 import { useAuthStore } from '../../store/authStore';
@@ -11,7 +12,8 @@ import { Table } from '../UI/Table';
 import { Modal } from '../UI/Modal';
 import { Select } from '../UI/Select';
 import { formatDate } from '../../utils/dateUtils';
-import { exportData } from '../../utils/exportUtils'; // will be used correctly below
+import { exportData } from '../../utils/exportUtils'; 
+import { formatPersonName } from '../../utils/formatUtils';
 
 export const Diagnoses: React.FC = () => {
   const { user } = useAuthStore();
@@ -86,13 +88,13 @@ export const Diagnoses: React.FC = () => {
       );
 
       const matchesDoctor = !filterDoctor || String(diagnosis.doctor || '') === String(filterDoctor);
-      const matchesDoctorRole = user?.role !== 'doctor' || String(diagnosis.doctor || '') === String(user?.id);
+  const matchesDoctorRole = !isRole(user, 'doctor') || String(diagnosis.doctor || '') === String(user?.id);
 
       return matchesSearch && matchesDoctor && matchesDoctorRole;
     });
   }, [diagnoses, patients, staff, searchTerm, filterDoctor, user]);
 
-  const doctors = staff.filter(s => s.role === 'doctor');
+  const doctors = staff.filter(s => roleIncludes(s, 'doctor'));
 
   const handleOpenModal = (diagnosis?: ApiDiagnosis) => {
     if (diagnosis) {
@@ -110,7 +112,7 @@ export const Diagnoses: React.FC = () => {
       setEditingDiagnosis(null);
       setFormData({
         patient: '',
-        doctor: user?.role === 'doctor' ? String(user.id) : '',
+  doctor: isRole(user, 'doctor') ? String(user?.id ?? '') : '',
         symptoms: '',
         diagnosis: '',
         treatment_plan: '',
@@ -243,7 +245,7 @@ export const Diagnoses: React.FC = () => {
       return {
         'Date': formatDate(diagnosis.created_at),
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
-        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown',
+  'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : 'Unknown',
         'Symptoms': diagnosis.symptoms,
         'Diagnosis': diagnosis.diagnosis,
         'Treatment Plan': diagnosis.treatment_plan || '',
@@ -263,7 +265,7 @@ export const Diagnoses: React.FC = () => {
       {
         'Date': formatDate(diagnosis.created_at),
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown',
-        'Doctor': doctor ? `Dr. ${doctor.firstName} ${doctor.lastName}` : 'Unknown',
+  'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : 'Unknown',
         'Symptoms': diagnosis.symptoms,
         'Diagnosis': diagnosis.diagnosis,
         'Treatment Plan': diagnosis.treatment_plan || '',
@@ -302,7 +304,7 @@ export const Diagnoses: React.FC = () => {
         return doctor ? (
           <div className="flex items-center space-x-2">
             <Stethoscope className="w-4 h-4 text-gray-400" />
-            <span>{`Dr. ${doctor.firstName} ${doctor.lastName}`}</span>
+            <span>{formatPersonName(doctor, 'Dr.')}</span>
           </div>
         ) : 'Unknown Doctor';
       }
@@ -428,7 +430,7 @@ export const Diagnoses: React.FC = () => {
               leftIcon={<Search className="w-4 h-4 text-gray-400" />}
             />
           </div>
-          {user?.role === 'admin' && (
+          {isRole(user, 'admin') && (
             <Select
               value={filterDoctor}
               onChange={(e) => setFilterDoctor(e.target.value)}
@@ -436,7 +438,7 @@ export const Diagnoses: React.FC = () => {
                 { value: '', label: 'All Doctors' },
                 ...doctors.map(doctor => ({
                   value: doctor.id,
-                  label: `Dr. ${doctor.firstName} ${doctor.lastName}`
+                  label: formatPersonName(doctor, 'Dr.')
                 }))
               ]}
               className="w-full lg:w-48"
@@ -479,12 +481,12 @@ export const Diagnoses: React.FC = () => {
               value={formData.doctor}
               onChange={(e) => setFormData({ ...formData, doctor: e.target.value })}
               options={doctors.map(doctor => ({
-                value: doctor.id,
-                label: `Dr. ${doctor.firstName} ${doctor.lastName}`
+                value: String(doctor.id),
+                label: formatPersonName(doctor, 'Dr.')
               }))}
               placeholder="Select doctor"
               required
-              disabled={user?.role === 'doctor'}
+              disabled={isRole(user, 'doctor')}
             />
           </div>
 

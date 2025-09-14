@@ -16,6 +16,7 @@ import { Table } from '../UI/Table';
 import { Modal } from '../UI/Modal';
 import { Select } from '../UI/Select';
 import { useAuthStore } from '../../store/authStore';
+import { isRole } from '../../utils/roleUtils';
 import { formatDate } from '../../utils/dateUtils';
 import { exportData } from '../../utils/exportUtils';
 
@@ -365,7 +366,7 @@ export const PatientManagement: React.FC = () => {
           >
             Export PDF
           </Button>
-          {user?.role !== 'doctor' && (
+          {!isRole(user, 'doctor') && (
             <Button
               size="small"
               variant="secondary"
@@ -375,7 +376,7 @@ export const PatientManagement: React.FC = () => {
               Edit
             </Button>
           )}
-          {user?.role !== 'receptionist' && user?.role !== 'doctor' && (
+          {!isRole(user, 'receptionist') && !isRole(user, 'doctor') && (
             <Button
               size="small"
               variant="danger"
