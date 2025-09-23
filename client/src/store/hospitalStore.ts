@@ -265,7 +265,7 @@ export const useHospitalStore = create<HospitalStore>()(
       updateStaff: (id, staff) => {
         set((state) => ({
           staff: state.staff.map((s) =>
-            s.id === id
+            String(s.id) === String(id)
               ? { ...s, ...staff, updatedAt: new Date().toISOString() }
               : s
           ),
@@ -417,7 +417,7 @@ export const useHospitalStore = create<HospitalStore>()(
       updateDiagnosis: (id, diagnosis) => {
         set((state) => ({
           diagnoses: state.diagnoses.map((d) =>
-            d.id === id
+            String(d.id) === String(id)
               ? { ...d, ...diagnosis, updatedAt: new Date().toISOString() }
               : d
           ),
@@ -442,7 +442,7 @@ export const useHospitalStore = create<HospitalStore>()(
       updateMedicine: (id, medicine) => {
         set((state) => ({
           medicines: state.medicines.map((m) =>
-            m.id === id
+            String(m.id) === String(id)
               ? { ...m, ...medicine, updatedAt: new Date().toISOString() }
               : m
           ),
@@ -473,7 +473,7 @@ export const useHospitalStore = create<HospitalStore>()(
       updatePrescription: (id, prescription) => {
         set((state) => ({
           prescriptions: state.prescriptions.map((p) =>
-            p.id === id
+            String(p.id) === String(id)
               ? { ...p, ...prescription, updatedAt: new Date().toISOString() }
               : p
           ),
@@ -490,7 +490,7 @@ export const useHospitalStore = create<HospitalStore>()(
       updateLabTest: (id, labTest) => {
         set((state) => ({
           labTests: state.labTests.map((t) =>
-            t.id === id ? { ...t, ...labTest } : t
+            String(t.id) === String(id) ? { ...t, ...labTest } : t
           ),
         }));
       },
@@ -513,7 +513,7 @@ export const useHospitalStore = create<HospitalStore>()(
       updateLabOrder: (id, labOrder) => {
         set((state) => ({
           labOrders: state.labOrders.map((o) =>
-            o.id === id
+            String(o.id) === String(id)
               ? { ...o, ...labOrder, updatedAt: new Date().toISOString() }
               : o
           ),
@@ -521,26 +521,26 @@ export const useHospitalStore = create<HospitalStore>()(
       },
 
       deleteLabOrder: (id) => {
-        set((state) => ({ labOrders: state.labOrders.filter((o) => o.id !== id) }));
+        set((state) => ({ labOrders: state.labOrders.filter((o) => String(o.id) !== String(id)) }));
       },
 
       // Lab Result operations
   addLabResult: (labResult) => {
         set((state) => ({
-          labResults: [...state.labResults, labResult],
+          labResults: [...state.labResults, { ...labResult, id: String((labResult as any).id) }],
         }));
       },
 
       deleteLabResult: (id) => {
         set((state) => ({
-          labResults: state.labResults.filter((r) => r.id !== id),
+          labResults: state.labResults.filter((r) => String(r.id) !== String(id)),
         }));
       },
 
       updateLabResult: (id, labResult) => {
         set((state) => ({
           labResults: state.labResults.map((r) =>
-            r.id === id ? { ...r, ...labResult } : r
+            String(r.id) === String(id) ? { ...r, ...labResult } : r
           ),
         }));
       },

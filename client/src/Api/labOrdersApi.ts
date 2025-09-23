@@ -6,7 +6,7 @@ export interface LabOrder {
 	patient_name: string | null;
 	doctor: number | null;
 	doctor_name: string | null;
-	tests: string;
+	tests: string[];
 	notes: string | null;
 	status: string;
 	created_at: string;

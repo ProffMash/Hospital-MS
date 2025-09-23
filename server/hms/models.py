@@ -136,7 +136,8 @@ class LabOders(models.Model):
 
 class LabResults(models.Model):
     lab_order = models.ForeignKey('LabOders', on_delete=models.CASCADE, related_name='LabOrder')
-    result = models.TextField()
+    # result = models.TextField()
+    result = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
