@@ -26,8 +26,13 @@ export interface Diagnosis {
 
 // Fetch all diagnoses (Read)
 export async function fetchDiagnoses(): Promise<Diagnosis[]> {
-  const response = await api.get<Diagnosis[]>(`diagnoses/`);
-  return response.data;
+  const response = await api.get<any>(`diagnoses/`);
+  if (response && response.data) {
+    const d = response.data;
+    if (Array.isArray(d)) return d as Diagnosis[];
+    if (Array.isArray(d.results)) return d.results as Diagnosis[];
+  }
+  return [] as Diagnosis[];
 }
 
 // Create a new diagnosis (Create)

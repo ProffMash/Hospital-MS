@@ -117,7 +117,8 @@ export interface LabResult {
   id: string;
   orderId: string;
   testId: string;
-  value: string;
+  // result values are stored as an array of strings (e.g. ["eosinophils","brucella","wbc"]) to match API
+  values: string[];
   unit: string;
   normalRange: string;
   status: 'normal' | 'abnormal' | 'critical';

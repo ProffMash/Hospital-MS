@@ -8,7 +8,7 @@ export interface ApiLabOrder {
   patient_name?: string | null;
   doctor?: number | { id?: number; name?: string } | null;
   doctor_name?: string | null;
-  tests?: string | any[];
+  tests?: string [];
   notes?: string | null;
   status?: string | null;
 }
@@ -17,18 +17,21 @@ export interface LabResult {
   id: number;
   // server returns nested LabOrder object for lab_order (read) but expects an ID on write
   lab_order: ApiLabOrder | number;
-  result: string | null;
+  result: string[];
   created_at: string;
 }
 
 // Simplified shape the UI needs: only the result, the lab-order name and the patient name
 export interface SimplifiedLabResult {
   id: number;
-  result: string | null;
+  // result is stored as an array of strings on the server (e.g. ["eosinophils","brucella","wbc"])
+  result: string[] | null;
   labOrderName: string | null; // inferred from lab_order.tests (see assumptions below)
   labOrderId?: number | null;
   labOrderTests?: string[] | string | null;
   patientName: string | null;
+  // creation timestamp from backend (ISO string)
+  created_at?: string | null;
 }
 
 // Map a raw LabResult (server payload) to the simplified shape used by the UI.
@@ -73,30 +76,47 @@ export function simplifyLabResult(lr: LabResult): SimplifiedLabResult {
 
   return {
     id: lr.id,
-    result: lr.result,
+    // ensure result is an array; if server unexpectedly returns a string, try to parse or split
+    result: Array.isArray(lr.result)
+      ? lr.result
+      : (typeof lr.result === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(lr.result as unknown as string);
+              return Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+            } catch (e) {
+              return String(lr.result).split(',').map(s => s.trim()).filter(Boolean);
+            }
+          })()
+        : null),
     labOrderName,
     labOrderId: labOrder ? (labOrder.id ?? null) : null,
     labOrderTests: labOrderTests ?? null,
     patientName,
+    created_at: (lr as any).created_at ?? (lr as any).createdAt ?? null,
   };
 }
 
 // payload to create/update a lab result — backend expects lab_order as an ID and result text
 export interface LabResultCreatePayload {
   lab_order: number;
-  result?: string;
+  result?: string[];
 }
 
 // Fetch all lab results (Read)
 export async function fetchLabResults(): Promise<LabResult[]> {
   const response = await api.get<LabResult[]>(`lab-results/`);
-  return response.data;
+  const data: any = response.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 // Convenience function: fetch lab results and return only the simplified fields the UI needs.
 export async function fetchLabResultsSummary(): Promise<SimplifiedLabResult[]> {
-  const response = await api.get<LabResult[]>(`lab-results/`);
-  return response.data.map(simplifyLabResult);
+  // Reuse fetchLabResults which already normalizes paginated responses to arrays
+  const list = await fetchLabResults();
+  return list.map(simplifyLabResult);
 }
 
 // Create a new lab result (Create)

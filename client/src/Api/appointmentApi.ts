@@ -14,8 +14,13 @@ export interface Appointment {
 
 // Fetch all appointments (Read)
 export async function fetchAppointments(): Promise<Appointment[]> {
-  const response = await api.get<Appointment[]>(`appointments/`);
-  return response.data;
+  const response = await api.get<any>(`appointments/`);
+  if (response && response.data) {
+    const d = response.data;
+    if (Array.isArray(d)) return d as Appointment[];
+    if (Array.isArray(d.results)) return d.results as Appointment[];
+  }
+  return [] as Appointment[];
 }
 
 // Create a new appointment (Create)

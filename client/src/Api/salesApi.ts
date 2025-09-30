@@ -11,7 +11,10 @@ export interface Sale {
 // Fetch all sales
 export async function fetchSales(): Promise<Sale[]> {
   const response = await api.get<Sale[]>(`sales/`);
-  return response.data;
+  const data: any = response.data;
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 // Create a new sale

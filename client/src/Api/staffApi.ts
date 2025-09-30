@@ -28,8 +28,13 @@ const AUTH_URL = 'auth/';
 
 // Fetch all users
 export async function fetchUsers(): Promise<User[]> {
-  const response = await api.get<User[]>(`users/`);
-  return response.data;
+  const response = await api.get<any>(`users/`);
+  if (response && response.data) {
+    const d = response.data;
+    if (Array.isArray(d)) return d as User[];
+    if (Array.isArray(d.results)) return d.results as User[];
+  }
+  return [] as User[];
 }
 
 // Fetch a single user by ID

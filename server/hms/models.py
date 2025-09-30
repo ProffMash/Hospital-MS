@@ -31,7 +31,8 @@ class User(AbstractUser):
         ('pharmacist', 'Pharmacist'),
         ('receptionist', 'Receptionist'),
     )
-    role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='admin')
+    # index role for faster lookups (filter by role is common in the UI)
+    role = models.CharField(max_length=15, choices=ROLE_CHOICES, default='admin', db_index=True)
     name = models.CharField(max_length=150)
     specialization = models.CharField(max_length=100, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
@@ -65,7 +66,6 @@ class User(AbstractUser):
 
 
 class Patient(models.Model):
-    # Allow male/female/other — keep choices explicit so serializer/model validation accepts values
     GENDER_CHOICES = [
         ('male', 'Male'),
         ('female', 'Female'),
@@ -90,7 +90,7 @@ class Patient(models.Model):
         ('not_paid', 'Not Paid'),
     ]
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='not_paid')
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -101,7 +101,14 @@ class Medicine(models.Model):
     description = models.TextField()
     stock = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        # index category to speed category filters and name to help searches
+        indexes = [
+            models.Index(fields=['category']),
+            models.Index(fields=['name']),
+        ]
 
     def __str__(self):
         return self.name
@@ -114,7 +121,7 @@ class Diagnosis(models.Model):
     diagnosis = models.TextField()
     prescribed_medicines = models.JSONField(default=list)
     additional_notes = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     def __str__(self):
         return f"Diagnosis for {self.patient_name} by {self.doctor_name} on {self.date}"
@@ -130,15 +137,21 @@ class LabOders(models.Model):
 
     patient = models.ForeignKey('Patient', on_delete=models.CASCADE, related_name='laboratories')
     doctor = models.ForeignKey('User', on_delete=models.CASCADE, related_name='laboratories')
-    tests = models.TextField()
+    # tests = models.TextField()
+    tests = models.JSONField(default=list, blank=True)
     notes = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=CHOICES, default='sample_collected')
+    # Track when the lab order was created/updated
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 class LabResults(models.Model):
     lab_order = models.ForeignKey('LabOders', on_delete=models.CASCADE, related_name='LabOrder')
     # result = models.TextField()
     result = models.JSONField(default=list, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    # also track updates
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
 
 class Appointments(models.Model):
@@ -157,13 +170,17 @@ class Appointments(models.Model):
         ('not_paid', 'Not Paid'),
     ]
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='not_paid')
+    # index appointments by date for faster calendar queries
+    class Meta:
+        indexes = [models.Index(fields=['date'])]
 
 
 class Sale(models.Model):
     medicine = models.ForeignKey('Medicine', on_delete=models.CASCADE, related_name='sales')
     quantity = models.PositiveIntegerField()
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    date = models.DateField()
+    # index by date for faster range and calendar queries
+    date = models.DateField(db_index=True)
 
     def clean(self):
         # Ensure quantity is positive (PositiveIntegerField already enforces >=0) and stock sufficiency

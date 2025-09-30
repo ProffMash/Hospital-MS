@@ -1,6 +1,6 @@
 from rest_framework import serializers
 import json
-from .models import User, Patient, Medicine, Diagnosis, LabOders, LabResults, Appointments, Sale
+from .models import User, Patient, Medicine, Diagnosis, Appointments, Sale, LabOders, LabResults
 from decimal import Decimal
 
 
@@ -85,7 +85,10 @@ class LabOrderSerializer(serializers.ModelSerializer):
             'tests',
             'notes',
             'status',
+            'created_at',
+            'updated_at',
         ]
+        read_only_fields = ['created_at', 'updated_at']
 
     def get_patient_name(self, obj):
         if obj.patient:
@@ -134,8 +137,9 @@ class LabResultSerializer(serializers.ModelSerializer):
             'lab_order_detail', # nested representation on read
             'result',
             'created_at',
+            'updated_at',
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = ['created_at', 'updated_at']
 
     def to_representation(self, instance):
         # Use default representation then replace the PK field with nested data for clarity.

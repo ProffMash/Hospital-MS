@@ -24,8 +24,14 @@ export interface Patient {
 
 // Fetch all patients (Read)
 export async function fetchPatients(): Promise<Patient[]> {
-  const response = await api.get<Patient[]>(`patients/`);
-  return response.data;
+  const response = await api.get<any>(`patients/`);
+  // DRF may return a paginated object { count, next, previous, results: [...] }
+  if (response && response.data) {
+    const d = response.data;
+    if (Array.isArray(d)) return d as Patient[];
+    if (Array.isArray(d.results)) return d.results as Patient[];
+  }
+  return [] as Patient[];
 }
 
 // Create a new patient (Create)

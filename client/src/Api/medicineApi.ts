@@ -13,7 +13,11 @@ export interface Medicine {
 // Fetch all medicines (Read)
 export async function fetchMedicines(): Promise<Medicine[]> {
   const response = await api.get<Medicine[]>(`medicines/`);
-  return response.data;
+  const data: any = response.data;
+  // DRF paginated responses have the shape { results: [...] }. Normalize to plain array.
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
 }
 
 // Create a new medicine (Create)

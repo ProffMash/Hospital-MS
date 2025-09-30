@@ -124,12 +124,59 @@ export const Laboratory: React.FC = () => {
 
   const [resultFormData, setResultFormData] = useState({
     orderId: '',
-    value: '',
+    patientId: '',
+    values: [] as string[],
     testId: '',
     status: '',
     notes: '',
     technician: ''
   });
+
+  // Helper to normalize various server/legacy shapes into string[] for `values`
+  const normalizeToArray = (raw: any): string[] => {
+    if (!raw && raw !== 0) return [];
+    if (Array.isArray(raw)) return raw.map(String);
+    if (typeof raw === 'string') {
+      // Try JSON parse first (server might return JSON string)
+      try {
+        const p = JSON.parse(raw);
+        if (Array.isArray(p)) return p.map(String);
+        return [String(p)];
+      } catch (e) {
+        return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+      }
+    }
+    return [String(raw)];
+  };
+
+  // Helper to pair values with tests when possible: tests can be an array of names or ids
+  const normalizePairs = (values: any, tests: any): { testName: string; value: string }[] => {
+    const vals = normalizeToArray(values);
+    if (!tests) {
+      // create generic pairs with unnamed tests
+      return vals.map(v => ({ testName: '', value: v }));
+    }
+    let testNames: string[] = [];
+    if (Array.isArray(tests)) testNames = tests.map(String);
+    else if (typeof tests === 'string') {
+      try {
+        const p = JSON.parse(tests);
+        if (Array.isArray(p)) testNames = p.map(String);
+        else testNames = [String(p)];
+      } catch (e) {
+        testNames = String(tests).split(',').map((s:string) => s.trim()).filter(Boolean);
+      }
+    } else {
+      testNames = [String(tests)];
+    }
+
+    if (testNames.length && testNames.length === vals.length) {
+      return vals.map((v, i) => ({ testName: testNames[i], value: v }));
+    }
+
+    // If lengths don't match, try to attach first test name to first value and leave rest unnamed
+    return vals.map((v, i) => ({ testName: testNames[i] ?? '', value: v }));
+  };
 
   const filteredOrders = useMemo(() => {
     const normalizedLabOrders = labOrders.map((o: any) => {
@@ -197,15 +244,21 @@ export const Laboratory: React.FC = () => {
 
       const key = patientName || String(r.orderId) || 'Unknown';
   const entry = map.get(key) || { patientName: patientName || 'Unknown', items: [] as any[] };
-      entry.items.push(r);
+  // compute pairs of testName -> value for this result record
+  const order = labOrders.find(o => String(o.id) === String(r.orderId));
+  const orderTests = order ? (order.testIds ?? null) : null;
+  const testNameFromResult = (r as any).testName || (labTests.find(t => t.id === r.testId) || {}).name || '';
+  const pairs = (r as any).pairs ? (r as any).pairs : normalizePairs((r as any).values ?? (r as any).result, orderTests ?? (testNameFromResult ? [testNameFromResult] : null));
+  const enriched = { ...(r as any), pairs };
+  entry.items.push(enriched);
       map.set(key, entry);
     });
 
     return Array.from(map.entries()).map(([key, group], idx) => ({
       id: `group-${idx}-${key}`,
       patientName: group.patientName,
-      // combine tests and values into a compact string
-      testsDisplay: group.items.map((it: any) => `${(it as any).testName || labTests.find(t => t.id === it.testId)?.name || 'Test'}: ${it.value || '—'}`).join('; '),
+  // combine tests and values into a compact string (show pairings)
+  testsDisplay: group.items.map((it: any) => (it.pairs || []).map((p: any) => `${p.testName || it.testName || labTests.find((t:any) => t.id === it.testId)?.name || 'Test'}: ${p.value}`).join('; ')).join(' | '),
       latestDate: group.items.reduce((d: string | null, it: any) => {
         return it.completedAt && (!d || new Date(it.completedAt) > new Date(d)) ? it.completedAt : d;
       }, null as any) || '',
@@ -215,6 +268,9 @@ export const Laboratory: React.FC = () => {
 
   const [groupModalOpen, setGroupModalOpen] = useState(false);
   const [groupModalItems, setGroupModalItems] = useState<any[]>([]);
+  const [editingPairIndex, setEditingPairIndex] = useState<number | null>(null);
+  const [editingPairValue, setEditingPairValue] = useState<string>('');
+  const [editingValues, setEditingValues] = useState<string[] | null>(null);
 
   const handleOpenModal = (type: 'order' | 'test' | 'result', item?: any) => {
     // accept only 'order' or 'result' now
@@ -263,21 +319,33 @@ export const Laboratory: React.FC = () => {
       if (item) {
         setResultFormData({
           orderId: item.orderId,
+          patientId: (item.patientId ?? '') as string,
           testId: item.testId,
-          value: item.value,
+          values: Array.isArray(item.values) ? item.values : (item.value ? [item.value] : []),
           status: item.status,
           notes: item.notes || '',
           technician: item.technician
         });
+        // initialize editing values array from pairs/values for inline editing
+        const initialValues = (item.pairs && Array.isArray(item.pairs) && item.pairs.length)
+          ? item.pairs.map((p: any) => String(p.value ?? ''))
+          : (Array.isArray(item.values) && item.values.length) ? [...item.values] : (item.value ? [String(item.value)] : []);
+        setEditingPairIndex(initialValues.length ? 0 : null);
+        setEditingPairValue(initialValues.length ? initialValues[0] : '');
+        setEditingValues(initialValues.length ? initialValues : null);
       } else {
         setResultFormData({
           orderId: '',
+          patientId: '',
           testId: '',
-          value: '',
+          values: [],
           status: '',
           notes: '',
           technician: user?.name || ''
         });
+        setEditingPairIndex(null);
+        setEditingPairValue('');
+        setEditingValues(null);
       }
     }
     
@@ -287,15 +355,22 @@ export const Laboratory: React.FC = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingItem(null);
+    setEditingPairIndex(null);
+    setEditingPairValue('');
+    setEditingValues(null);
   };
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (modalType === 'order') {
-      // Convert selected tests to testIds array for compatibility
-      const testIds = Object.entries(orderFormData.selectedTests)
+      // Convert selected tests to testIds array for compatibility (map keys/names to actual labTests ids when possible)
+      const rawTestKeys = Object.entries(orderFormData.selectedTests)
         .filter(([_, selected]) => selected)
         .map(([testName, _]) => testName);
+      const testIds = rawTestKeys.map(k => {
+        const found = labTests.find(t => String(t.id) === String(k) || t.name === k || (t.name && t.name.replace(/\s+/g, '') === k) );
+        return found ? String(found.id) : String(k);
+      });
 
       // If creating a new order (not editing)
       if (!editingItem) {
@@ -309,7 +384,8 @@ export const Laboratory: React.FC = () => {
         const payload: any = {
           patient: Number(orderFormData.patientId),
           doctor: orderFormData.doctorId ? Number(orderFormData.doctorId) : null,
-          tests: testIds.join(', '),
+          // send tests as an array of test ids/keys (backend may accept array or string; prefer array)
+          tests: testIds,
           notes: orderFormData.notes || null,
           status: 'pending'
         };
@@ -318,31 +394,48 @@ export const Laboratory: React.FC = () => {
             let createdTestIds: string[] = [];
             if (Array.isArray(resp.tests)) createdTestIds = resp.tests;
             else if (typeof resp.tests === 'string') createdTestIds = (resp.tests as string).split(',').map((t: string) => t.trim()).filter(Boolean);
+            // derive readable names for patient/doctor when backend doesn't return them
+            const localDoctorId = resp.doctor ? String(resp.doctor) : String(orderFormData.doctorId || '');
+            const staffDoctor = staff.find(s => String(s.id) === localDoctorId);
+            const doctorName = resp.doctor_name ?? (staffDoctor ? `${staffDoctor.firstName} ${staffDoctor.lastName}` : (user && user.role === 'doctor' ? formatPersonName(user, 'Dr.') : ''));
+            const localPatientId = resp.patient ? String(resp.patient) : String(orderFormData.patientId || '');
+            const patientObj = patients.find(p => String(p.id) === String(localPatientId));
+            const patientName = resp.patient_name ?? (patientObj ? `${patientObj.firstName} ${patientObj.lastName}` : '');
+
             addLabOrder({
               id: resp.id ? String(resp.id) : Date.now().toString(),
               patientId: String(resp.patient ?? orderFormData.patientId),
-              doctorId: resp.doctor ? String(resp.doctor) : String(orderFormData.doctorId || ''),
+              doctorId: localDoctorId,
               testIds: createdTestIds.length ? createdTestIds : testIds,
               status: resp.status as any || 'pending',
               orderDate: resp.created_at || new Date().toISOString(),
               notes: resp.notes || orderFormData.notes || '',
               createdAt: resp.created_at || new Date().toISOString(),
               updatedAt: resp.created_at || new Date().toISOString(),
+              doctorName,
+              patientName,
             } as LabOrder);
           })
           .catch((err) => {
             console.error('Failed to create lab order', err);
             // fallback: create locally
+            const fallbackDoctorId = orderFormData.doctorId || (user?.role === 'doctor' ? user.id : '');
+            const staffDoctorFallback = staff.find(s => String(s.id) === String(fallbackDoctorId));
+            const fallbackDoctorName = staffDoctorFallback ? `${staffDoctorFallback.firstName} ${staffDoctorFallback.lastName}` : (user && user.role === 'doctor' ? formatPersonName(user, 'Dr.') : '');
+            const fallbackPatientObj = patients.find(p => String(p.id) === String(orderFormData.patientId));
+            const fallbackPatientName = fallbackPatientObj ? `${fallbackPatientObj.firstName} ${fallbackPatientObj.lastName}` : '';
             addLabOrder({
               id: Date.now().toString(),
               patientId: orderFormData.patientId,
-              doctorId: orderFormData.doctorId,
+              doctorId: fallbackDoctorId,
               testIds,
               status: 'pending',
               orderDate: new Date().toISOString(),
               notes: orderFormData.notes || '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
+              doctorName: fallbackDoctorName,
+              patientName: fallbackPatientName,
             } as LabOrder);
           });
       } else {
@@ -354,7 +447,8 @@ export const Laboratory: React.FC = () => {
           const payload: any = {
             patient: Number(orderFormData.patientId),
             doctor: orderFormData.doctorId ? Number(orderFormData.doctorId) : null,
-            tests: testIds.join(', '),
+            // prefer sending array for tests (already converted to ids when possible)
+            tests: testIds,
             notes: orderFormData.notes || null,
             status: orderFormData.priority || editingItem.status || 'pending'
           };
@@ -378,14 +472,21 @@ export const Laboratory: React.FC = () => {
       const resultDataTemplate = {
         id: editingItem?.id || Date.now().toString(),
         orderId: resultFormData.orderId,
-        value: resultFormData.value || editingItem?.value || '',
+        values: resultFormData.values && resultFormData.values.length ? resultFormData.values : (editingItem?.values || (editingItem?.value ? [editingItem.value] : [])),
         completedAt: new Date().toISOString()
       } as any;
 
       if (editingItem) {
+        // compute the result array to send: start from current form values or existing values, then apply single-pair edit if present
+        const computedValuesForPayload = (resultFormData.values && resultFormData.values.length) ? [...resultFormData.values] : (editingItem?.values ? [...editingItem.values] : (editingItem?.value ? [editingItem.value] : []));
+        if (editingPairIndex !== null && typeof editingPairIndex !== 'undefined') {
+          while (computedValuesForPayload.length <= (editingPairIndex as number)) computedValuesForPayload.push('');
+          computedValuesForPayload[editingPairIndex as number] = editingPairValue ?? computedValuesForPayload[editingPairIndex as number];
+        }
+
         const payload: any = {
           lab_order: Number(resultFormData.orderId),
-          result: resultFormData.value || (editingItem?.value || '')
+          result: computedValuesForPayload
         };
 
         // Optimistically update local store so UI doesn't show 'Unknown' while waiting for server
@@ -429,7 +530,7 @@ export const Laboratory: React.FC = () => {
             testId: localTestId,
             testName: localTestName,
             patientName: localPatientName,
-            value: resultFormData.value || (editingItem?.value || ''),
+            values: computedValuesForPayload,
             completedAt: new Date().toISOString(),
           } as any;
           updateLabResult(String(editingItem.id), optimistic);
@@ -445,13 +546,14 @@ export const Laboratory: React.FC = () => {
             const matchingOrder = labOrders.find(o => String(o.id) === resolvedOrderId);
             // prefer a sensible patientName: server -> matchingOrder -> current local store -> editingItem
             const currentLocalAfter = labResults.find((r: any) => String(r.id) === String(editingItem.id));
-            const normalized = {
+              const normalized = {
               id: String(resp.id),
               orderId: resolvedOrderId,
               testId: (resp as any).test_id ? String((resp as any).test_id) : (resultFormData.testId || editingItem.testId || ''),
               testName: (resp as any).test_name || (resp as any).testIdName || (matchingOrder && Array.isArray(matchingOrder.testIds) && matchingOrder.testIds.length ? labTests.find(t => t.id === matchingOrder.testIds[0])?.name || '' : '') || (editingItem as any).testName || '',
               patientName: matchingOrder ? ((matchingOrder as any).patientName ?? (matchingOrder as any).patient_name ?? '') : ((resp as any).patientName ?? (currentLocalAfter as any)?.patientName ?? (editingItem as any).patientName ?? ''),
-              value: (resp as any).result ?? resultDataTemplate.value,
+                values: normalizeToArray((resp as any).result ?? resultDataTemplate.values),
+                pairs: normalizePairs((resp as any).result ?? resultDataTemplate.values, matchingOrder ? (matchingOrder.testIds ?? null) : ((resp as any).test_name ? [ (resp as any).test_name ] : null)),
               completedAt: (resp as any).created_at ?? resultDataTemplate.completedAt,
             } as any;
             updateLabResult(String(editingItem.id), normalized);
@@ -464,7 +566,7 @@ export const Laboratory: React.FC = () => {
         const resolvedOrderIdNum = Number(resultFormData.orderId);
         const resultPayload: any = {
           lab_order: resolvedOrderIdNum,
-          result: resultFormData.value || ''
+          result: resultFormData.values && resultFormData.values.length ? resultFormData.values : ['']
         };
         if (!resultFormData.orderId || Number.isNaN(resolvedOrderIdNum) || resolvedOrderIdNum <= 0) {
           console.error('Cannot create lab result: invalid lab order id', resultFormData.orderId);
@@ -481,7 +583,8 @@ export const Laboratory: React.FC = () => {
                 testId: (resp as any).test_id ? String((resp as any).test_id) : '',
                 testName: createdOrder && Array.isArray(createdOrder.testIds) && createdOrder.testIds.length ? labTests.find(t => t.id === createdOrder.testIds[0])?.name || '' : '',
                 patientName: createdOrder ? ((createdOrder as any).patientName ?? (createdOrder as any).patient_name ?? '') : '',
-                value: (resp as any).result ?? resultDataTemplate.value,
+                values: normalizeToArray((resp as any).result ?? resultDataTemplate.values),
+                pairs: normalizePairs((resp as any).result ?? resultDataTemplate.values, createdOrder ? (createdOrder.testIds ?? null) : ((resp as any).test_name ? [ (resp as any).test_name ] : null)),
                 completedAt: (resp as any).created_at ?? resultDataTemplate.completedAt,
               } as any;
               addLabResult(normalized as LabResult);
@@ -527,7 +630,7 @@ export const Laboratory: React.FC = () => {
         return {
           'Test': (result as any).testName || test?.name || 'Unknown Test',
           'Patient': (result as any).patientName || (patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown'),
-          'Result': result.value,
+          'Result': (result as any).pairs && (result as any).pairs.length ? (result as any).pairs.map((p: any) => `${p.testName || ''}: ${p.value}`).join('; ') : (Array.isArray((result as any).values) ? (result as any).values.join(', ') : (result as any).value || ''),
           'Status': result.status,
           'Date': formatDate(result.completedAt)
         };
@@ -577,14 +680,14 @@ export const Laboratory: React.FC = () => {
               testId: '',
               testName: (Array.isArray(r.labOrderTests) && r.labOrderTests[0]) ? String(r.labOrderTests[0]) : (r.labOrderName ?? ''),
               patientName: r.patientName ?? '',
-              value: r.result ?? '',
+              values: Array.isArray(r.result) ? r.result : (typeof r.result === 'string' ? (function(){ try{ const p=JSON.parse(r.result); return Array.isArray(p)?p:[String(p)]; }catch(e){ return String(r.result).split(',').map((s:string)=>s.trim()).filter(Boolean); } })() : []),
               unit: '',
               normalRange: '',
               status: 'normal',
               notes: '',
               technician: '',
               reviewedBy: '',
-              completedAt: new Date().toISOString(),
+              completedAt: (r && (r.created_at ?? r.createdAt)) ? (r.created_at ?? r.createdAt) : new Date().toISOString(),
             }));
             setLabResults(normalizedResults as any);
           })
@@ -617,11 +720,17 @@ export const Laboratory: React.FC = () => {
 
   // Helper used by LabOrderInputModal to finalize creation
   const createOrderFromInput = (payload: { patientId: string; doctorId?: string; tests: string[]; priority?: string; notes?: string; testDetails?: any[] }) => {
-    const testIds = payload.tests || [];
+    const testIdsRaw = payload.tests || [];
+    const testIds = testIdsRaw.map(k => {
+      const found = labTests.find(t => String(t.id) === String(k) || t.name === k || (t.name && t.name.replace(/\s+/g, '') === k));
+      return found ? String(found.id) : String(k);
+    });
+
     const apiPayload: any = {
       patient: Number(payload.patientId),
       doctor: payload.doctorId ? Number(payload.doctorId) : null,
-      tests: testIds.join(', '),
+      // send tests as array of ids/keys
+      tests: testIds,
       notes: payload.notes || null,
       status: payload.priority || 'pending'
     } as any;
@@ -640,10 +749,17 @@ export const Laboratory: React.FC = () => {
   let createdTestIds: string[] = [];
   if (Array.isArray(resp.tests)) createdTestIds = resp.tests;
   else if (typeof resp.tests === 'string') createdTestIds = (resp.tests as string).split(',').map((t: string) => t.trim()).filter(Boolean);
+        const localDoctorId2 = resp.doctor ? String(resp.doctor) : String(payload.doctorId || '');
+        const staffDoctor2 = staff.find(s => String(s.id) === localDoctorId2);
+        const doctorName2 = resp.doctor_name ?? (staffDoctor2 ? `${staffDoctor2.firstName} ${staffDoctor2.lastName}` : (user && user.role === 'doctor' ? formatPersonName(user, 'Dr.') : ''));
+        const localPatientId2 = resp.patient ? String(resp.patient) : String(payload.patientId || '');
+        const patientObj2 = patients.find(p => String(p.id) === String(localPatientId2));
+        const patientName2 = resp.patient_name ?? (patientObj2 ? `${patientObj2.firstName} ${patientObj2.lastName}` : '');
+
         addLabOrder({
           id: resp.id ? String(resp.id) : Date.now().toString(),
           patientId: String(resp.patient ?? payload.patientId),
-          doctorId: resp.doctor ? String(resp.doctor) : String(payload.doctorId || ''),
+          doctorId: localDoctorId2,
           testIds: createdTestIds.length ? createdTestIds : testIds,
           status: resp.status as any || 'pending',
           orderDate: resp.created_at || new Date().toISOString(),
@@ -652,15 +768,22 @@ export const Laboratory: React.FC = () => {
           testDetails: payload.testDetails || undefined,
           createdAt: resp.created_at || new Date().toISOString(),
           updatedAt: resp.created_at || new Date().toISOString(),
+          doctorName: doctorName2,
+          patientName: patientName2,
         } as any);
       })
       .catch((err) => {
         console.error('Failed to create lab order', err);
         // fallback: create locally
+        const fallbackDoctorId2 = payload.doctorId || (user?.role === 'doctor' ? user.id : '');
+        const staffDoctorFallback2 = staff.find(s => String(s.id) === String(fallbackDoctorId2));
+        const fallbackDoctorName2 = staffDoctorFallback2 ? `${staffDoctorFallback2.firstName} ${staffDoctorFallback2.lastName}` : (user && user.role === 'doctor' ? formatPersonName(user, 'Dr.') : '');
+        const fallbackPatientObj2 = patients.find(p => String(p.id) === String(payload.patientId));
+        const fallbackPatientName2 = fallbackPatientObj2 ? `${fallbackPatientObj2.firstName} ${fallbackPatientObj2.lastName}` : '';
         addLabOrder({
           id: Date.now().toString(),
           patientId: payload.patientId,
-          doctorId: payload.doctorId,
+          doctorId: fallbackDoctorId2,
           testIds,
           status: payload.priority || 'pending',
           orderDate: new Date().toISOString(),
@@ -668,6 +791,8 @@ export const Laboratory: React.FC = () => {
           testDetails: payload.testDetails || undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          doctorName: fallbackDoctorName2,
+          patientName: fallbackPatientName2,
         } as any);
       })
       .finally(() => {
@@ -701,43 +826,44 @@ export const Laboratory: React.FC = () => {
 
     const details = payload.testDetails && payload.testDetails.length ? payload.testDetails : (payload.tests || []).map(t => ({ key: t, value: '' }));
 
-    // For each test detail, create a lab result on the server (or fallback locally)
-    details.forEach((d) => {
-      const resultPayload: any = {
-        lab_order: resolvedOrderIdNum,
-        result: d.value || ''
-      };
+    // Instead of creating one lab result per test, create a single LabResult whose `result` is an array of strings
+    const resultArray: string[] = details.map(d => (d.value && String(d.value).trim()) ? String(d.value).trim() : String(d.key));
 
-      apiCreateLabResult(resultPayload)
-        .then((respAny: any) => {
-          const resp = respAny as any;
-          const createdOrderId = resp.lab_order ? String(resp.lab_order.id ?? resp.lab_order) : String(resp.lab_order ?? '');
-          const createdOrder = labOrders.find(o => String(o.id) === createdOrderId);
-          const normalized = {
-            id: String(resp.id),
-            orderId: createdOrderId,
-            testId: (resp as any).test_id ? String((resp as any).test_id) : '',
-            testName: d.key || (createdOrder && Array.isArray(createdOrder.testIds) && createdOrder.testIds.length ? labTests.find(t => t.id === createdOrder.testIds[0])?.name || '' : ''),
-            patientName: createdOrder ? ((createdOrder as any).patientName ?? (createdOrder as any).patient_name ?? '') : '',
-            value: (resp as any).result ?? d.value ?? '',
-            completedAt: (resp as any).created_at ?? new Date().toISOString(),
-          } as any;
-          addLabResult(normalized as LabResult);
-        })
-        .catch((err) => {
-          console.error('Failed to create lab result for test', d.key, err);
-          // fallback: add local-only result
-          addLabResult({
-            id: Date.now().toString(),
-            orderId: String(orderId),
-            testId: d.key,
-            testName: d.key,
-            patientName: '',
-            value: d.value || '',
-            completedAt: new Date().toISOString(),
-          } as any);
-        });
-    });
+    const resultPayload: any = {
+      lab_order: resolvedOrderIdNum,
+      result: resultArray
+    };
+
+    apiCreateLabResult(resultPayload)
+      .then((respAny: any) => {
+        const resp = respAny as any;
+        const createdOrderId = resp.lab_order ? String(resp.lab_order.id ?? resp.lab_order) : String(resp.lab_order ?? '');
+        const createdOrder = labOrders.find(o => String(o.id) === createdOrderId);
+        const normalized = {
+          id: String(resp.id),
+          orderId: createdOrderId,
+          testId: '',
+          testName: (createdOrder && Array.isArray(createdOrder.testIds) && createdOrder.testIds.length) ? labTests.find(t => t.id === createdOrder.testIds[0])?.name || '' : '',
+          patientName: createdOrder ? ((createdOrder as any).patientName ?? (createdOrder as any).patient_name ?? '') : '',
+          values: normalizeToArray((resp as any).result ?? resultArray),
+          pairs: normalizePairs((resp as any).result ?? resultArray, createdOrder ? (createdOrder.testIds ?? null) : null),
+          completedAt: (resp as any).created_at ?? new Date().toISOString(),
+        } as any;
+        addLabResult(normalized as LabResult);
+      })
+      .catch((err) => {
+        console.error('Failed to create lab result for tests', err);
+        // fallback: add a single local-only result containing all values
+        addLabResult({
+          id: Date.now().toString(),
+          orderId: String(orderId),
+          testId: '',
+          testName: '',
+          patientName: '',
+          values: resultArray,
+          completedAt: new Date().toISOString(),
+        } as any);
+      });
 
     // close the input modal and the parent result modal
     setShowInputModal(false);
@@ -755,7 +881,7 @@ export const Laboratory: React.FC = () => {
     // fetch simplified lab results summary from backend and populate the store
     setResultsLoading(true);
     setResultsError(null);
-    apiFetchLabResultsSummary()
+            apiFetchLabResultsSummary()
       .then((data) => {
         const normalizedResults = (data || []).map((r: any) => ({
           id: String(r.id),
@@ -763,14 +889,16 @@ export const Laboratory: React.FC = () => {
           testId: '',
           testName: (Array.isArray(r.labOrderTests) && r.labOrderTests[0]) ? String(r.labOrderTests[0]) : (r.labOrderName ?? ''),
           patientName: r.patientName ?? '',
-          value: r.result ?? '',
+          values: Array.isArray(r.result) ? r.result : (typeof r.result === 'string' ? (function(){ try{ const p=JSON.parse(r.result); return Array.isArray(p)?p:[String(p)]; }catch(e){ return String(r.result).split(',').map((s:string)=>s.trim()).filter(Boolean); } })() : []),
+          pairs: normalizePairs(r.result, r.labOrderTests ?? r.labOrderName ?? null),
           unit: '',
           normalRange: '',
           status: 'normal',
           notes: '',
           technician: '',
           reviewedBy: '',
-          completedAt: new Date().toISOString(),
+          // Prefer server created_at if provided, otherwise fall back to createdAt or now
+          completedAt: (r && (r.created_at ?? r.createdAt)) ? (r.created_at ?? r.createdAt) : new Date().toISOString(),
         }));
         setLabResults(normalizedResults as any);
         setResultsLoading(false);
@@ -1065,7 +1193,7 @@ export const Laboratory: React.FC = () => {
                           <Button size="small" variant="secondary" onClick={() => { setGroupModalItems(row.items || []); setGroupModalOpen(true); }}>
                             Details
                           </Button>
-                            <Button size="small" variant="secondary" onClick={() => exportData((row.items || []).map((it: any) => ({ Test: it.testName || labTests.find(t => t.id === it.testId)?.name || '', Result: it.value, Date: formatDate(it.completedAt) })), `lab-results-${row.patientName}`, 'pdf', `Lab Results — ${row.patientName}`)}>
+                            <Button size="small" variant="secondary" onClick={() => exportData((row.items || []).map((it: any) => ({ Test: it.testName || labTests.find(t => t.id === it.testId)?.name || '', Result: (it.pairs && it.pairs.length) ? it.pairs.map((p:any)=>`${p.testName || ''}: ${p.value}`).join('; ') : (Array.isArray(it.values) ? it.values.join(', ') : (it.value || '')), Date: formatDate(it.completedAt) })), `lab-results-${row.patientName}`, 'pdf', `Lab Results — ${row.patientName}`)}>
                               Export PDF
                             </Button>
                             <Button size="small" variant="danger" onClick={() => {
@@ -1094,7 +1222,17 @@ export const Laboratory: React.FC = () => {
                         <div key={it.id} className="p-3 border rounded bg-white dark:bg-gray-800 flex items-center justify-between">
                           <div>
                             <div className="font-medium">{it.testName || labTests.find(t => t.id === it.testId)?.name || 'Test'}</div>
-                            <div className="text-sm text-gray-500">Value: {it.value || '—'}</div>
+                            <div className="text-sm text-gray-500">
+                              {(it.pairs || []).length ? (
+                                <ul className="list-disc list-inside">
+                                  {(it.pairs || []).map((p: any, i: number) => (
+                                    <li key={i}>{(p.testName || (i===0 ? (it.testName || labTests.find((t:any)=>t.id===it.testId)?.name) : ''))}: {p.value}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <>{Array.isArray(it.values) ? it.values.join(', ') : (it.value || '—')}</>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-400">Date: {formatDate(it.completedAt)}</div>
                           </div>
                           <div className="flex space-x-2">
@@ -1164,17 +1302,23 @@ export const Laboratory: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Doctor
                     </label>
-                    <Select
-                      value={orderFormData.doctorId}
-                      onChange={(e) => setOrderFormData({ ...orderFormData, doctorId: e.target.value })}
-                      options={doctors.map(doctor => ({
-                        value: doctor.id,
-                        label: `Dr. ${doctor.firstName} ${doctor.lastName}`
-                      }))}
-                      placeholder="Select doctor"
-                      required
-                      disabled={user?.role === 'doctor'}
-                    />
+                    {isRole(user, 'doctor') ? (
+                      // When the logged-in user is a doctor show a read-only label (same UX as Diagnoses/Appointments)
+                      <div className="py-2 px-3 rounded bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+                        {formatPersonName(user, 'Dr.')}
+                      </div>
+                    ) : (
+                      <Select
+                        value={orderFormData.doctorId}
+                        onChange={(e) => setOrderFormData({ ...orderFormData, doctorId: e.target.value })}
+                        options={doctors.map(doctor => ({
+                          value: doctor.id,
+                          label: `Dr. ${doctor.firstName} ${doctor.lastName}`
+                        }))}
+                        placeholder="Select doctor"
+                        required
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -1407,38 +1551,48 @@ export const Laboratory: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Lab Order</label>
                   <div className="flex items-center space-x-2">
-                    <Select
-                      value={resultFormData.orderId}
-                      onChange={(e) => setResultFormData({ ...resultFormData, orderId: e.target.value })}
-                      options={labOrders.map(order => {
-                        const patient = patients.find(p => p.id === order.patientId);
-                        return {
-                          value: order.id,
-                          label: `${patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown'} - ${formatDate(order.orderDate)}`
-                        };
-                      })}
-                      placeholder="Select order"
-                      required
-                    />
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Patient</label>
+                      <Select
+                        searchable
+                        value={resultFormData.patientId}
+                        onChange={(e) => {
+                          const pid = e.target.value;
+                          // set patient id and clear any manual order selection
+                          setResultFormData(prev => ({ ...prev, patientId: pid, orderId: '' } as any));
+                          // derive latest order for this patient
+                          const ordersForPatient = labOrders.filter(o => String(o.patientId) === String(pid) || String((o as any).patient) === String(pid));
+                          if (ordersForPatient.length) {
+                            const latest = ordersForPatient.sort((a: any, b: any) => new Date(b.orderDate || b.created_at || 0).getTime() - new Date(a.orderDate || a.created_at || 0).getTime())[0];
+                            if (latest) setResultFormData(prev => ({ ...prev, orderId: String(latest.id) } as any));
+                          }
+                        }}
+                        options={patients.map(patient => ({ value: patient.id, label: `${patient.firstName} ${patient.lastName}` }))}
+                        placeholder="Search patient"
+                        required
+                      />
+                    </div>
                     {/* Button to open the Enter Lab Order Details modal from the Results tab */}
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => {
-                        // If an order is selected, prefill the input modal with its tests and patient/doctor
-                        const selectedOrder = labOrders.find(o => String(o.id) === String(resultFormData.orderId));
+                    {!editingItem && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                        // Determine order to prefill: prefer explicit orderId, otherwise latest for selected patient
+                        const selectedOrder = labOrders.find(o => String(o.id) === String(resultFormData.orderId)) || labOrders.filter(o => String(o.patientId) === String(resultFormData.patientId) || String((o as any).patient) === String(resultFormData.patientId)).sort((a:any,b:any)=> new Date(b.orderDate||b.created_at||0).getTime()-new Date(a.orderDate||a.created_at||0).getTime())[0];
                         let testsForModal: string[] = [];
                         let pid = orderFormData.patientId || '';
                         let did = orderFormData.doctorId || '';
 
                         if (selectedOrder) {
-                          // normalize tests which may be an array or a comma-separated string
                           if (Array.isArray((selectedOrder as any).testIds)) testsForModal = (selectedOrder as any).testIds;
                           else if (Array.isArray((selectedOrder as any).tests)) testsForModal = (selectedOrder as any).tests;
                           else if (typeof (selectedOrder as any).tests === 'string') testsForModal = String((selectedOrder as any).tests).split(',').map(s => s.trim()).filter(Boolean);
 
                           pid = String((selectedOrder as any).patientId ?? (selectedOrder as any).patient ?? '');
                           did = String((selectedOrder as any).doctorId ?? (selectedOrder as any).doctor ?? '');
+                          // ensure resultFormData.orderId uses this order when opening input modal
+                          setResultFormData(prev => ({ ...prev, orderId: String(selectedOrder.id), patientId: pid } as any));
                         }
 
                         setInputModalTests(testsForModal);
@@ -1450,17 +1604,51 @@ export const Laboratory: React.FC = () => {
                       }}
                     >
                       Order Details
-                    </Button>
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                <Input
-                  label="Result Value"
-                  value={resultFormData.value}
-                  onChange={(e) => setResultFormData({ ...resultFormData, value: e.target.value })}
-                  placeholder="Enter result value"
-                  required
-                />
+                {/* Result values are entered via the 'Order Details' modal. The free-form comma-separated input was removed. */}
+                {/* Single-pair edit controls: allow selecting which test/result to edit and change its value */}
+                {editingItem && editingValues && (
+                  <div className="mt-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Enter results for each test below</h3>
+                    <div className="divide-y">
+                      {editingValues.map((_val, idx) => {
+                        // derive test label/unit/range from editingItem.pairs or labTests lookup
+                        const testLabel = (editingItem.pairs && editingItem.pairs[idx] && editingItem.pairs[idx].testName) || editingItem.testName || (labTests.find((t:any) => t.id === editingItem.testId)?.name) || `Test ${idx+1}`;
+                        const unit = labTests.find((t:any) => t.id === editingItem.testId)?.unit || '';
+                        const normalRange = labTests.find((t:any) => t.id === editingItem.testId)?.normalRange || '';
+                        return (
+                          <div key={idx} className="py-2 grid grid-cols-12 gap-2 items-center">
+                            <div className="col-span-5">
+                              <div className="text-sm font-medium text-gray-800 dark:text-white">{testLabel}</div>
+                              {normalRange && <div className="text-xs text-gray-500">Reference: {normalRange}</div>}
+                            </div>
+                            <div className="col-span-4">
+                              <Input
+                                value={editingValues[idx] ?? ''}
+                                onChange={(e) => {
+                                  const next = editingValues.slice();
+                                  next[idx] = e.target.value;
+                                  setEditingValues(next);
+                                  // keep editingPairIndex/value synced for compatibility
+                                  setEditingPairIndex(idx);
+                                  setEditingPairValue(next[idx] ?? '');
+                                }}
+                                placeholder="Enter result"
+                              />
+                            </div>
+                            <div className="col-span-3 text-sm text-gray-600">
+                              {unit && <div>Unit: {unit}</div>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

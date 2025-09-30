@@ -38,7 +38,7 @@ ALLOWED_HOSTS = [
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5174',
+    'http://localhost:5173',
     'https://hospital-ms-alpha.vercel.app',
     'https://hospital-ms-9mt5.onrender.com'
 ]
@@ -67,7 +67,7 @@ CORS_ALLOW_HEADERS = [
 
 # CSRF settings to match CORS
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5174',
+    'http://localhost:5173',
     'https://hospial-ms.vercel.app',
     'https://hospital-ms.vercel.app',
     'https://hospital-ms.onrender.com'
@@ -94,6 +94,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',  # Must be at the top
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -184,3 +185,19 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',
     ),
 }
+
+# Simple caching configuration. For production switch to Redis/Memcached via env var.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': BASE_DIR / 'cachefiles',
+        'TIMEOUT': 60,  # default per-call timeout in seconds
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
+# REST Framework: add small page size to reduce payload sizes and DB load
+REST_FRAMEWORK.setdefault('DEFAULT_PAGINATION_CLASS', 'rest_framework.pagination.PageNumberPagination')
+REST_FRAMEWORK.setdefault('PAGE_SIZE', 25)

@@ -15,7 +15,11 @@ export interface LabOrder {
 // Fetch all lab orders (Read)
 export async function fetchLabOrders(): Promise<LabOrder[]> {
 	const response = await api.get<LabOrder[]>(`lab-orders/`);
-	return response.data;
+	// DRF may return a paginated object { results: [...] } or a plain array. Normalize to array.
+	const data: any = response.data;
+	if (Array.isArray(data)) return data;
+	if (data && Array.isArray(data.results)) return data.results;
+	return [];
 }
 
 // Create a new lab order (Create)

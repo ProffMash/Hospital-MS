@@ -125,7 +125,45 @@ export const useHospitalStore = create<HospitalStore>()(
       // labResults storage and setter
       labResults: [],
       setLabResults: (labResults) => {
-        set(() => ({ labResults }));
+        // Normalize incoming lab results so UI uses `values: string[]`
+        const normalized = (labResults || []).map((r: any) => {
+          let values: string[] = [];
+          if (Array.isArray(r.values)) values = r.values.map(String);
+          else if (Array.isArray(r.result)) values = r.result.map(String);
+          else if (typeof r.result === 'string') {
+            try {
+              const parsed = JSON.parse(r.result);
+              values = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+            } catch (e) {
+              values = String(r.result).split(',').map((s: string) => s.trim()).filter(Boolean);
+            }
+          } else if (typeof r.values === 'string') {
+            try {
+              const parsed = JSON.parse(r.values);
+              values = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+            } catch (e) {
+              values = String(r.values).split(',').map((s: string) => s.trim()).filter(Boolean);
+            }
+          }
+
+          return {
+            id: String(r.id),
+            orderId: r.orderId ? String(r.orderId) : (r.labOrderId ? String(r.labOrderId) : ''),
+            testId: r.testId ? String(r.testId) : (r.test_id ? String(r.test_id) : ''),
+            values,
+            unit: r.unit ?? '',
+            normalRange: r.normalRange ?? '',
+            status: (r.status as any) ?? 'normal',
+            notes: r.notes ?? '',
+            technician: r.technician ?? '',
+            reviewedBy: r.reviewedBy ?? r.reviewed_by ?? '',
+            completedAt: r.completedAt ?? r.created_at ?? new Date().toISOString(),
+            patientName: (r as any).patientName ?? (r as any).patient_name ?? '',
+            testName: (r as any).testName ?? (r as any).test_name ?? '',
+          } as any;
+        });
+
+        set(() => ({ labResults: normalized }));
       },
       setLabOrders: (labOrders) => {
         // Normalize backend-shaped lab order objects into the UI shape
@@ -526,9 +564,14 @@ export const useHospitalStore = create<HospitalStore>()(
 
       // Lab Result operations
   addLabResult: (labResult) => {
-        set((state) => ({
-          labResults: [...state.labResults, { ...labResult, id: String((labResult as any).id) }],
-        }));
+        const toAdd: any = { ...labResult };
+        toAdd.id = String((labResult as any).id ?? generateId());
+        if (Array.isArray(toAdd.values)) toAdd.values = toAdd.values.map(String);
+        else if (Array.isArray((labResult as any).value)) toAdd.values = (labResult as any).value.map(String);
+        else if (typeof toAdd.value === 'string') toAdd.values = String(toAdd.value).split(',').map((s: string) => s.trim()).filter(Boolean);
+        else toAdd.values = toAdd.values ? [String(toAdd.values)] : [];
+
+        set((state) => ({ labResults: [...state.labResults, toAdd] }));
       },
 
       deleteLabResult: (id) => {
@@ -677,13 +720,27 @@ export const useHospitalStore = create<HospitalStore>()(
             } as any;
           });
 
-          const normalizedLabResults = (labResults || []).map((r: any) => ({
-            id: String(r.id),
-            labOrderId: r.lab_order?.id ?? r.lab_order ?? null,
-            result: r.result ?? null,
-            createdAt: r.created_at ?? new Date().toISOString(),
-            updatedAt: r.updated_at ?? r.updatedAt ?? new Date().toISOString(),
-          } as any));
+          const normalizedLabResults = (labResults || []).map((r: any) => {
+            let values: string[] = [];
+            if (Array.isArray(r.values)) values = r.values.map(String);
+            else if (Array.isArray(r.result)) values = r.result.map(String);
+            else if (typeof r.result === 'string') {
+              try {
+                const parsed = JSON.parse(r.result);
+                values = Array.isArray(parsed) ? parsed.map(String) : [String(parsed)];
+              } catch (e) {
+                values = String(r.result).split(',').map((s: string) => s.trim()).filter(Boolean);
+              }
+            }
+
+            return {
+              id: String(r.id),
+              labOrderId: r.lab_order?.id ?? r.lab_order ?? null,
+              values,
+              createdAt: r.created_at ?? new Date().toISOString(),
+              updatedAt: r.updated_at ?? r.updatedAt ?? new Date().toISOString(),
+            } as any;
+          });
 
           const normalizedSales = (sales || []).map((s: any) => ({
             id: String(s.id),

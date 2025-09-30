@@ -1,26 +1,30 @@
 from django.shortcuts import render
 from rest_framework import viewsets
-from .models import User, Patient, Medicine, Diagnosis,  LabOders, LabResults, Appointments, Sale
-from .serializers import UserSerializer, PatientSerializer, MedicineSerializer, DiagnosisSerializer,  LabOrderSerializer, LabResultSerializer, AppointmentSerializer, SaleSerializer
+from .models import LabOders, LabResults, User, Patient, Medicine, Diagnosis,   Appointments, Sale
+from .serializers import LabResultSerializer, UserSerializer, PatientSerializer, MedicineSerializer, DiagnosisSerializer,LabResultSerializer , LabOrderSerializer, AppointmentSerializer, SaleSerializer
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from .serializers import RegisterSerializer, LoginSerializer
 from rest_framework.decorators import api_view, action
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
 # Create your views here.
 User = get_user_model()
 
+@method_decorator(cache_page(30), name='list')
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    # select only necessary fields and order by most recent
+    queryset = User.objects.all().order_by('-id')
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 class PatientViewSet(viewsets.ModelViewSet):
-    queryset = Patient.objects.all()
+    queryset = Patient.objects.all().order_by('-created_at')
     serializer_class = PatientSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -30,7 +34,8 @@ class PatientViewSet(viewsets.ModelViewSet):
         return Response({"patient_count": count})
 
 class MedicineViewSet(viewsets.ModelViewSet):
-    queryset = Medicine.objects.all()
+    # index/ordering and select_related not required for simple model, keep ordering and add short cache
+    queryset = Medicine.objects.all().order_by('-created_at')
     serializer_class = MedicineSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -45,8 +50,10 @@ class MedicineViewSet(viewsets.ModelViewSet):
         count = Medicine.objects.count()
         return Response({"medicine_count": count})
 
+@method_decorator(cache_page(30), name='list')
 class DiagnosisViewSet(viewsets.ModelViewSet):
-    queryset = Diagnosis.objects.all().select_related('patient', 'doctor')
+    # optimize by selecting related patient and doctor to avoid per-row queries
+    queryset = Diagnosis.objects.all().select_related('patient', 'doctor').order_by('-created_at')
     serializer_class = DiagnosisSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -55,27 +62,31 @@ class DiagnosisViewSet(viewsets.ModelViewSet):
         count = Diagnosis.objects.count()
         return Response({"diagnosis_count": count})
 
+@method_decorator(cache_page(30), name='list')
 class LabOrderViewSet(viewsets.ModelViewSet):
-    queryset = LabOders.objects.all().select_related('patient', 'doctor')
+    queryset = LabOders.objects.all().select_related('patient', 'doctor').order_by('-created_at')
     serializer_class = LabOrderSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+@method_decorator(cache_page(30), name='list')
 class LabResultViewSet(viewsets.ModelViewSet):
     """ViewSet for lab results. Returns nested lab_order data (including its patient/doctor) to reduce queries."""
     queryset = LabResults.objects.all().select_related(
         'lab_order',
         'lab_order__patient',
         'lab_order__doctor',
-    )
+    ).order_by('-created_at')
     serializer_class = LabResultSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 
+@method_decorator(cache_page(30), name='list')
 class SaleViewSet(viewsets.ModelViewSet):
     # optimize queries by selecting related medicine
-    queryset = Sale.objects.all().select_related('medicine')
+    # order by date desc and select related medicine for table views
+    queryset = Sale.objects.all().select_related('medicine').order_by('-date')
     serializer_class = SaleSerializer
     permission_classes = [permissions.IsAuthenticated]
 
