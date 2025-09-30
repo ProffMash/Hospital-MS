@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Activity, Mail, Lock, User, Sun, Moon } from 'lucide-react';
+import { Activity, Mail, Lock, User, Sun, Moon, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { Button } from '../components/UI/Button';
@@ -15,6 +15,7 @@ export const Login: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -96,13 +97,23 @@ export const Login: React.FC = () => {
 
             <Input
               label="Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="password"
               value={formData.password}
               onChange={handleChange}
               leftIcon={<Lock className="w-4 h-4 text-gray-400" />}
               placeholder="Enter your password"
               required
+              rightIcon={(
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              )}
             />
 
             <Button
@@ -117,7 +128,7 @@ export const Login: React.FC = () => {
 
           {/* Footer */}
           <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-            <p>&copy; 2024 Hospital Management System. All rights reserved.</p>
+            <p>&copy; 2025 Hospital Management System. All rights reserved.</p>
           </div>
         </div>
       </div>
