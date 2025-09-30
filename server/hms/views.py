@@ -125,7 +125,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     Keeps behavior minimal and consistent with other viewsets.
     """
-    queryset = Appointments.objects.all().select_related('patient', 'doctor')
+    # order by date/time 
+    queryset = Appointments.objects.all().select_related('patient', 'doctor').order_by('-date', '-time')
     serializer_class = AppointmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 

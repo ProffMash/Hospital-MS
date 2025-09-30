@@ -172,6 +172,7 @@ class Appointments(models.Model):
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='not_paid')
     # index appointments by date for faster calendar queries
     class Meta:
+        ordering = ['-date', '-time']
         indexes = [models.Index(fields=['date'])]
 
 
