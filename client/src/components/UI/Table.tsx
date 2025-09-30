@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import FadeLoader from './FadeLoader';
 
 interface Column {
   key: string;
@@ -40,7 +41,7 @@ export const Table: React.FC<TableProps> = ({
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="p-8 text-center">
-          <div className="inline-block w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div>
+          <FadeLoader size={36} />
           <p className="mt-4 text-gray-500 dark:text-gray-400">Loading...</p>
         </div>
       </div>

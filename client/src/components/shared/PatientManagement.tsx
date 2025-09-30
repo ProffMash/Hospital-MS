@@ -24,6 +24,7 @@ export const PatientManagement: React.FC = () => {
   const { patients, addPatient, updatePatient, deletePatient } = useHospitalStore();
   const setPatients = useHospitalStore(state => (state as any).setPatients);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [viewingPatient, setViewingPatient] = useState<Patient | null>(null);
@@ -258,6 +259,7 @@ export const PatientManagement: React.FC = () => {
       updatedAt: p.created_at,
     });
 
+    setLoading(true);
     apiFetchPatients()
       .then((res) => {
         if (!mounted) return;
@@ -266,6 +268,9 @@ export const PatientManagement: React.FC = () => {
       })
       .catch((err) => {
         console.error('Failed to fetch patients', err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
 
     return () => {
@@ -445,7 +450,8 @@ export const PatientManagement: React.FC = () => {
         <Table
           data={filteredPatients}
           columns={columns}
-          emptyMessage="No patients found"
+          loading={loading}
+          emptyMessage={loading ? 'Loading patients...' : 'No patients found'}
         />
       </Card>
 

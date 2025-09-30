@@ -162,7 +162,7 @@ export const SalesList: React.FC = () => {
           </div>
         </div>
 
-        <Table data={filteredSales} columns={columns} emptyMessage={loading ? 'Loading sales...' : 'No sales found'} />
+  <Table data={filteredSales} columns={columns} loading={loading} emptyMessage={loading ? 'Loading sales...' : 'No sales found'} />
       </Card>
 
     </div>

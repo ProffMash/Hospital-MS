@@ -1153,14 +1153,12 @@ export const Laboratory: React.FC = () => {
 
         {activeTab === 'results' && (
           <>
-            {resultsLoading && (
-              <div className="py-4 text-center text-sm text-gray-500">Loading lab results...</div>
-            )}
             {resultsError && (
               <div className="py-4 text-center text-sm text-red-500">{resultsError}</div>
             )}
                 <Table
                   data={groupedResults}
+                  loading={resultsLoading}
                   columns={[
                     {
                       key: 'patient',

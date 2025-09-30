@@ -17,6 +17,7 @@ export const StaffManagement: React.FC = () => {
   const setStaff = useHospitalStore((s) => s.setStaff);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
   const [showModal, setShowModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
   // use API-friendly form shape: name, email, role, specialization, phone, address
@@ -161,6 +162,7 @@ export const StaffManagement: React.FC = () => {
   // Fetch staff from backend on mount
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
         const users = await staffApi.fetchUsers();
         // map backend User -> local Staff shape where possible
@@ -186,6 +188,8 @@ export const StaffManagement: React.FC = () => {
         setStaff(mapped);
       } catch (err) {
         console.error('Failed to load staff', err);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [setStaff]);
@@ -339,7 +343,8 @@ export const StaffManagement: React.FC = () => {
         <Table
           data={filteredStaff}
           columns={columns}
-          emptyMessage="No staff members found"
+          loading={loading}
+          emptyMessage={loading ? 'Loading staff...' : 'No staff members found'}
         />
       </Card>
 

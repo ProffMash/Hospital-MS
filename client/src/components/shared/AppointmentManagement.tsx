@@ -27,6 +27,7 @@ export const AppointmentManagement: React.FC = () => {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [loading, setLoading] = useState<boolean>(false);
   const [filterDate, setFilterDate] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -343,7 +344,8 @@ export const AppointmentManagement: React.FC = () => {
 
   // Fetch appointments from API and map to UI shape on mount
   useEffect(() => {
-    fetchAppointments();
+    setLoading(true);
+    fetchAppointments().finally(() => setLoading(false));
   }, [fetchAppointments]);
 
   return (
@@ -406,7 +408,8 @@ export const AppointmentManagement: React.FC = () => {
         <Table
           data={filteredAppointments}
           columns={columns}
-          emptyMessage="No appointments found"
+          loading={loading}
+          emptyMessage={loading ? 'Loading appointments...' : 'No appointments found'}
         />
       </Card>
 

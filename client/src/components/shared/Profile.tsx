@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { fetchUserById, updateUser } from '../../Api/staffApi';
 import { Card } from '../UI/Card';
+import FadeLoader from '../UI/FadeLoader';
 
 type DisplayUser = {
   email?: string | null;
@@ -126,7 +127,12 @@ const Profile: React.FC<Props> = ({ user: propUser = null }) => {
     return <div className="p-4 text-sm text-gray-500">No user data available</div>;
   }
   if (loading) {
-    return <div className="p-4 text-sm text-gray-500">Loading profile...</div>;
+    return (
+      <div className="p-6 text-center">
+        <FadeLoader size={36} />
+        <div className="mt-3 text-sm text-gray-500">Loading profile...</div>
+      </div>
+    );
   }
   const onChange = (k: keyof DisplayUser, v: string) => {
     setForm((f) => ({ ...f, [k]: v }));

@@ -23,6 +23,7 @@ export const Diagnoses: React.FC = () => {
     setDiagnoses: setStoreDiagnoses
   } = useHospitalStore();
   const [diagnoses, setDiagnoses] = useState<ApiDiagnosis[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDoctor, setFilterDoctor] = useState('');
@@ -49,6 +50,7 @@ export const Diagnoses: React.FC = () => {
   // Fetch diagnoses from API
   React.useEffect(() => {
     let mounted = true;
+    setLoading(true);
     fetchDiagnoses()
       .then(data => {
         if (!mounted) return;
@@ -73,7 +75,10 @@ export const Diagnoses: React.FC = () => {
 
         setStoreDiagnoses(mapped as any);
       })
-      .catch(err => console.error('Failed to fetch diagnoses', err));
+      .catch(err => console.error('Failed to fetch diagnoses', err))
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
     return () => { mounted = false; };
   }, []);
 
@@ -449,7 +454,8 @@ export const Diagnoses: React.FC = () => {
         <Table
           data={filteredDiagnoses}
           columns={columns}
-          emptyMessage="No diagnoses found"
+          loading={loading}
+          emptyMessage={loading ? 'Loading diagnoses...' : 'No diagnoses found'}
         />
       </Card>
 

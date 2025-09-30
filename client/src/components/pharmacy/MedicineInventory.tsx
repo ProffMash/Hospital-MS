@@ -17,6 +17,7 @@ export const MedicineInventory: React.FC = () => {
   const { addSale } = useHospitalStore();
 
   const [medicines, setMedicines] = useState<ApiMedicine[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -47,12 +48,16 @@ export const MedicineInventory: React.FC = () => {
   // Fetch medicines from API on mount
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
     fetchMedicines()
       .then(data => {
         if (mounted) setMedicines(data);
       })
       .catch(err => {
         console.error('Failed to fetch medicines', err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
     return () => { mounted = false; };
   }, []);
@@ -420,7 +425,8 @@ export const MedicineInventory: React.FC = () => {
         <Table
           data={filteredMedicines}
           columns={columns}
-          emptyMessage="No medicines found"
+          loading={loading}
+          emptyMessage={loading ? 'Loading medicines...' : 'No medicines found'}
         />
       </Card>
 
