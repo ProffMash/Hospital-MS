@@ -609,12 +609,27 @@ export const Laboratory: React.FC = () => {
       dataToExport = filteredOrders.map(order => {
         const patient = patients.find(p => p.id === order.patientId);
         const doctor = staff.find(s => s.id === order.doctorId);
-        const tests = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).filter(Boolean).join(', ');
+        // Resolve tests into readable names. 
+        const rawTests: any[] = (order.testIds && Array.isArray(order.testIds) && order.testIds.length)
+          ? order.testIds
+          : (order.tests && Array.isArray(order.tests) && order.tests.length)
+            ? order.tests
+            : (order.testDetails && Array.isArray(order.testDetails) ? order.testDetails.map((d:any) => d.key || d.name || d) : []);
+
+        const tests = (rawTests || []).map((t: any) => {
+          const tid = String(t);
+          // try match by id or by name (stringified)
+          const found = labTests.find(lt => String(lt.id) === tid || String(lt.name) === tid);
+          if (found) return found.name;
+          // if original item looks like an object with name/key
+          if (t && typeof t === 'object') return t.name || t.key || String(t);
+          return tid;
+        }).filter(Boolean).join(', ');
+
         return {
           'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
           'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
-          'Tests': tests,
-          // notes removed from order model
+          'Tests': tests || (order.tests || '—'),
           'Status': order.status,
           'Order Date': formatDate(order.orderDate)
         };
@@ -644,13 +659,27 @@ export const Laboratory: React.FC = () => {
   const handleExportOrder = (order: any) => {
     const patient = patients.find(p => p.id === order.patientId);
     const doctor = staff.find(s => s.id === order.doctorId);
-    const tests = (order.testIds as string[]).map(id => labTests.find(t => t.id === id)?.name).filter(Boolean).join(', ');
+    // Build readable tests list for a single order export (same strategy as bulk export)
+    const rawTestsSingle: any[] = (order.testIds && Array.isArray(order.testIds) && order.testIds.length)
+      ? order.testIds
+      : (order.tests && Array.isArray(order.tests) && order.tests.length)
+        ? order.tests
+        : (order.testDetails && Array.isArray(order.testDetails) ? order.testDetails.map((d:any) => d.key || d.name || d) : []);
+
+    const testsSingle = (rawTestsSingle || []).map((t: any) => {
+      const tid = String(t);
+      const found = labTests.find(lt => String(lt.id) === tid || String(lt.name) === tid);
+      if (found) return found.name;
+      if (t && typeof t === 'object') return t.name || t.key || String(t);
+      return tid;
+    }).filter(Boolean).join(', ');
+
     const dataToExport = [
       {
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
         'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
-        'Tests': tests || (order.tests || '—'),
-  // notes removed from order model
+        'Tests': testsSingle || (order.tests || '—'),
+        // notes removed from order model
         'Status': order.status,
         'Order Date': formatDate(order.orderDate)
       }
