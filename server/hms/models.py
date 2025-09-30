@@ -139,7 +139,6 @@ class LabOders(models.Model):
     doctor = models.ForeignKey('User', on_delete=models.CASCADE, related_name='laboratories')
     # tests = models.TextField()
     tests = models.JSONField(default=list, blank=True)
-    notes = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=CHOICES, default='sample_collected')
     # Track when the lab order was created/updated
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)

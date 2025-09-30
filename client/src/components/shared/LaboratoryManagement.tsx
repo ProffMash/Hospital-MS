@@ -116,8 +116,9 @@ export const Laboratory: React.FC = () => {
     doctorId: '',
     selectedTests: { ...defaultSelectedTests },
     priority: '',
-    notes: '',
-    patientName: ''
+    status: 'pending',
+    patientName: '',
+    notes: ''
   });
 
 
@@ -128,8 +129,8 @@ export const Laboratory: React.FC = () => {
     values: [] as string[],
     testId: '',
     status: '',
-    notes: '',
-    technician: ''
+    technician: '',
+    notes: ''
   });
 
   // Helper to normalize various server/legacy shapes into string[] for `values`
@@ -302,6 +303,7 @@ export const Laboratory: React.FC = () => {
           doctorId: item.doctorId,
           selectedTests: selected,
           priority: item.priority,
+          status: item.status ?? 'pending',
           notes: item.notes || '',
           patientName: ''
         });
@@ -311,6 +313,7 @@ export const Laboratory: React.FC = () => {
           doctorId: user?.role === 'doctor' ? user.id : '',
           selectedTests: { ...defaultSelectedTests },
           priority: '',
+          status: 'pending',
           notes: '',
           patientName: ''
         });
@@ -386,8 +389,7 @@ export const Laboratory: React.FC = () => {
           doctor: orderFormData.doctorId ? Number(orderFormData.doctorId) : null,
           // send tests as an array of test ids/keys (backend may accept array or string; prefer array)
           tests: testIds,
-          notes: orderFormData.notes || null,
-          status: 'pending'
+          status: orderFormData.status || 'pending'
         };
         apiCreateLabOrder(payload as any)
           .then((resp) => {
@@ -409,7 +411,7 @@ export const Laboratory: React.FC = () => {
               testIds: createdTestIds.length ? createdTestIds : testIds,
               status: resp.status as any || 'pending',
               orderDate: resp.created_at || new Date().toISOString(),
-              notes: resp.notes || orderFormData.notes || '',
+              // notes field removed from lab orders
               createdAt: resp.created_at || new Date().toISOString(),
               updatedAt: resp.created_at || new Date().toISOString(),
               doctorName,
@@ -431,7 +433,6 @@ export const Laboratory: React.FC = () => {
               testIds,
               status: 'pending',
               orderDate: new Date().toISOString(),
-              notes: orderFormData.notes || '',
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               doctorName: fallbackDoctorName,
@@ -449,8 +450,7 @@ export const Laboratory: React.FC = () => {
             doctor: orderFormData.doctorId ? Number(orderFormData.doctorId) : null,
             // prefer sending array for tests (already converted to ids when possible)
             tests: testIds,
-            notes: orderFormData.notes || null,
-            status: orderFormData.priority || editingItem.status || 'pending'
+            status: orderFormData.status || editingItem.status || 'pending'
           };
           apiUpdateLabOrder(resolvedIdKey, payload as any)
             .then((resp) => {
@@ -460,7 +460,6 @@ export const Laboratory: React.FC = () => {
                 doctorId: resp.doctor ? String(resp.doctor) : orderFormData.doctorId,
                 testIds: resp.tests ? (Array.isArray(resp.tests) ? resp.tests : String(resp.tests).split(',').map((t: string) => t.trim())) : testIds,
                 status: resp.status as any,
-                notes: resp.notes || orderFormData.notes || '',
                 orderDate: resp.created_at || new Date().toISOString(),
               });
             })
@@ -615,7 +614,7 @@ export const Laboratory: React.FC = () => {
           'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
           'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
           'Tests': tests,
-          'Notes': order.notes || (order as any).notes || '—',
+          // notes removed from order model
           'Status': order.status,
           'Order Date': formatDate(order.orderDate)
         };
@@ -651,7 +650,7 @@ export const Laboratory: React.FC = () => {
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
         'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
         'Tests': tests || (order.tests || '—'),
-        'Notes': order.notes || (order as any).notes || '—',
+  // notes removed from order model
         'Status': order.status,
         'Order Date': formatDate(order.orderDate)
       }
@@ -719,7 +718,7 @@ export const Laboratory: React.FC = () => {
   };
 
   // Helper used by LabOrderInputModal to finalize creation
-  const createOrderFromInput = (payload: { patientId: string; doctorId?: string; tests: string[]; priority?: string; notes?: string; testDetails?: any[] }) => {
+  const createOrderFromInput = (payload: { patientId: string; doctorId?: string; tests: string[]; priority?: string; notes?: string; status?: string; testDetails?: any[] }) => {
     const testIdsRaw = payload.tests || [];
     const testIds = testIdsRaw.map(k => {
       const found = labTests.find(t => String(t.id) === String(k) || t.name === k || (t.name && t.name.replace(/\s+/g, '') === k));
@@ -731,8 +730,7 @@ export const Laboratory: React.FC = () => {
       doctor: payload.doctorId ? Number(payload.doctorId) : null,
       // send tests as array of ids/keys
       tests: testIds,
-      notes: payload.notes || null,
-      status: payload.priority || 'pending'
+      status: payload.status || payload.priority || 'pending'
     } as any;
 
     // include structured test details when available (sent as JSON string to backend if it understands it)
@@ -763,7 +761,7 @@ export const Laboratory: React.FC = () => {
           testIds: createdTestIds.length ? createdTestIds : testIds,
           status: resp.status as any || 'pending',
           orderDate: resp.created_at || new Date().toISOString(),
-          notes: resp.notes || payload.notes || '',
+          // notes removed from lab order model
           // persist testDetails locally in the order record so UI can show them
           testDetails: payload.testDetails || undefined,
           createdAt: resp.created_at || new Date().toISOString(),
@@ -785,9 +783,9 @@ export const Laboratory: React.FC = () => {
           patientId: payload.patientId,
           doctorId: fallbackDoctorId2,
           testIds,
-          status: payload.priority || 'pending',
+          status: payload.status || payload.priority || 'pending',
           orderDate: new Date().toISOString(),
-          notes: payload.notes || '',
+          // notes removed
           testDetails: payload.testDetails || undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -804,6 +802,7 @@ export const Laboratory: React.FC = () => {
           doctorId: user?.role === 'doctor' ? user.id : '',
           selectedTests: { ...defaultSelectedTests },
           priority: '',
+          status: 'pending',
           notes: '',
           patientName: ''
         });
@@ -992,15 +991,7 @@ export const Laboratory: React.FC = () => {
         );
       }
     },
-    {
-      key: 'notes',
-      header: 'Notes',
-      render: (_: any, order: LabOrder) => (
-        <div className="max-w-sm">
-          <p className="text-sm text-gray-900 dark:text-white truncate">{order.notes || (order as any).notes || '—'}</p>
-        </div>
-      )
-    },
+    // notes removed from orders per data model change
     {
       key: 'status',
       header: 'Status',
@@ -1318,6 +1309,22 @@ export const Laboratory: React.FC = () => {
                       />
                     )}
                   </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                  <Select
+                    value={orderFormData.status}
+                    onChange={(e) => setOrderFormData({ ...orderFormData, status: e.target.value })}
+                    options={[
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'sample_collected', label: 'Sample Collected' },
+                      { value: 'in_progress', label: 'In Progress' },
+                      { value: 'completed', label: 'Completed' },
+                      { value: 'cancelled', label: 'Cancelled' },
+                    ]}
+                    className="w-48"
+                  />
                 </div>
               </div>
 

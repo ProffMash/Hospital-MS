@@ -13,6 +13,7 @@ type Payload = {
   doctorId?: string;
   tests: string[]; // array of test keys/ids
   testDetails?: TestInput[]; // structured values for each test
+  status?: string;
 };
 
 type Props = {
@@ -29,6 +30,8 @@ type Props = {
 
 const LabOrderInputModal: React.FC<Props> = ({ isOpen, onClose, patientId, doctorId, selectedCategoryKeys, mode, title, submitLabel, onSubmit }) => {
   const [testsInputs, setTestsInputs] = useState<TestInput[]>([]);
+  // status is included in the payload but not edited in this modal UI
+  const [status] = useState<string>('pending');
 
   useEffect(() => {
     setTestsInputs(selectedCategoryKeys.map(k => ({ key: k, value: '' })));
@@ -59,6 +62,7 @@ const LabOrderInputModal: React.FC<Props> = ({ isOpen, onClose, patientId, docto
       doctorId,
       tests,
       testDetails,
+      status,
     });
   };
 
@@ -89,8 +93,6 @@ const LabOrderInputModal: React.FC<Props> = ({ isOpen, onClose, patientId, docto
             <div className="p-3 text-sm text-gray-500">No tests selected.</div>
           )}
         </div>
-
-        {/* General notes and priority removed from modal per request */}
 
         <div className="flex justify-end space-x-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>

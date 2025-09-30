@@ -108,7 +108,6 @@ export interface LabOrder {
   orderDate: string;
   sampleCollectedDate?: string;
   completedDate?: string;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -83,7 +83,6 @@ class LabOrderSerializer(serializers.ModelSerializer):
             'doctor',
             'doctor_name',
             'tests',
-            'notes',
             'status',
             'created_at',
             'updated_at',

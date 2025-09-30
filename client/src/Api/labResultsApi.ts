@@ -9,7 +9,6 @@ export interface ApiLabOrder {
   doctor?: number | { id?: number; name?: string } | null;
   doctor_name?: string | null;
   tests?: string [];
-  notes?: string | null;
   status?: string | null;
 }
 

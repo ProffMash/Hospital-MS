@@ -154,7 +154,7 @@ export const useHospitalStore = create<HospitalStore>()(
             unit: r.unit ?? '',
             normalRange: r.normalRange ?? '',
             status: (r.status as any) ?? 'normal',
-            notes: r.notes ?? '',
+            // notes removed from LabResult model
             technician: r.technician ?? '',
             reviewedBy: r.reviewedBy ?? r.reviewed_by ?? '',
             completedAt: r.completedAt ?? r.created_at ?? new Date().toISOString(),
@@ -180,7 +180,7 @@ export const useHospitalStore = create<HospitalStore>()(
             status: o.status ?? 'pending',
             priority: o.priority ?? 'routine',
             orderDate,
-            notes: o.notes ?? '',
+            // notes removed from LabOrder model
             createdAt: o.created_at ?? (o as any).createdAt ?? new Date().toISOString(),
             updatedAt: o.updated_at ?? (o as any).updatedAt ?? new Date().toISOString(),
           } as any;
@@ -714,7 +714,7 @@ export const useHospitalStore = create<HospitalStore>()(
               status: o.status ?? 'pending',
               priority: o.priority ?? 'routine',
               orderDate: o.created_at ?? o.order_date ?? new Date().toISOString(),
-              notes: o.notes ?? '',
+              // notes removed from LabOrder model
               createdAt: o.created_at ?? new Date().toISOString(),
               updatedAt: o.updated_at ?? new Date().toISOString(),
             } as any;
