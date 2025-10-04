@@ -43,6 +43,10 @@ export const PatientManagement: React.FC = () => {
   paymentStatus: 'not_paid'
   });
 
+  // can reference it. Doctors are not allowed to create or update patients.
+  const { user } = useAuthStore();
+  const isDoctor = isRole(user, 'doctor');
+
   const filteredPatients = patients.filter(patient => {
     const name = `${patient.firstName ? patient.firstName : ''} ${patient.lastName ? patient.lastName : ''}`.toLowerCase();
     const email = patient.email ? patient.email.toLowerCase() : '';
@@ -56,6 +60,11 @@ export const PatientManagement: React.FC = () => {
   });
 
   const handleOpenModal = (patient?: Patient) => {
+    // Prevent doctors from opening the add/edit modal (double-guard)
+    if (isDoctor) {
+      alert('You do not have permission to add or edit patients.');
+      return;
+    }
     if (patient) {
       setEditingPatient(patient);
       setFormData({
@@ -102,6 +111,12 @@ export const PatientManagement: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent doctors from submitting create/update requests from the UI
+    if (isDoctor) {
+      alert('You do not have permission to add or edit patients.');
+      return;
+    }
 
     // Basic client-side validation to avoid server 400 for required fields
     const missing: string[] = [];
@@ -315,8 +330,6 @@ export const PatientManagement: React.FC = () => {
     exportData(dataToExport, `patient-${patient.id}`, 'pdf', `Patient — ${patient.firstName} ${patient.lastName}`);
   };
 
-  const { user } = useAuthStore();
-
   const columns = [
     {
       key: 'name',
@@ -371,7 +384,7 @@ export const PatientManagement: React.FC = () => {
           >
             Export PDF
           </Button>
-          {!isRole(user, 'doctor') && (
+          {!isDoctor && (
             <Button
               size="small"
               variant="secondary"
@@ -381,7 +394,7 @@ export const PatientManagement: React.FC = () => {
               Edit
             </Button>
           )}
-          {!isRole(user, 'receptionist') && !isRole(user, 'doctor') && (
+          {!isRole(user, 'receptionist') && !isDoctor && (
             <Button
               size="small"
               variant="danger"
@@ -426,12 +439,14 @@ export const PatientManagement: React.FC = () => {
           >
             Export PDF
           </Button>
-          <Button
-            onClick={() => handleOpenModal()}
-            leftIcon={<Plus className="w-4 h-4" />}
-          >
-            Add Patient
-          </Button>
+          {!isDoctor && (
+            <Button
+              onClick={() => handleOpenModal()}
+              leftIcon={<Plus className="w-4 h-4" />}
+            >
+              Add Patient
+            </Button>
+          )}
         </div>
       </div>
 
