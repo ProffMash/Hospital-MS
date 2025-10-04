@@ -179,6 +179,71 @@ export const Laboratory: React.FC = () => {
     return vals.map((v, i) => ({ testName: testNames[i] ?? '', value: v }));
   };
 
+  // Helper to build aligned Tests and Results strings for an order (used for exports)
+  const formatOrderTestsAndResults = (order: any) => {
+    const rawTests: any[] = (order.testIds && Array.isArray(order.testIds) && order.testIds.length)
+      ? order.testIds
+      : (order.tests && Array.isArray(order.tests) && order.tests.length)
+        ? order.tests
+        : (order.testDetails && Array.isArray(order.testDetails) ? order.testDetails.map((d:any) => d.key || d.name || d) : []);
+
+    const testNames: string[] = (rawTests || []).map((t: any) => {
+      const tid = String(t);
+      const found = labTests.find(lt => String(lt.id) === tid || String(lt.name) === tid);
+      if (found) return found.name;
+      if (t && typeof t === 'object') return t.name || t.key || String(t);
+      return tid;
+    }).filter(Boolean) as string[];
+
+    // collect results for this order and attempt to align them to testNames
+    const orderResults = (labResults || []).filter((r:any) => String(r.orderId) === String(order.id));
+    const resultMap = new Map<string, string[]>();
+    orderResults.forEach((res: any) => {
+      if (res.pairs && Array.isArray(res.pairs) && res.pairs.length) {
+        res.pairs.forEach((p: any, idx: number) => {
+          const name = (p.testName && String(p.testName)) || testNames[idx] || '';
+          if (!name) return;
+          const arr = resultMap.get(name) || [];
+          arr.push(String(p.value ?? ''));
+          resultMap.set(name, arr);
+        });
+      } else if (Array.isArray(res.values) && res.values.length) {
+        if (testNames.length === res.values.length) {
+          res.values.forEach((v: any, idx: number) => {
+            const name = testNames[idx] || `Test ${idx+1}`;
+            const arr = resultMap.get(name) || [];
+            arr.push(String(v ?? ''));
+            resultMap.set(name, arr);
+          });
+        } else {
+          const arr = resultMap.get('__other__') || [];
+          arr.push(res.values.join(', '));
+          resultMap.set('__other__', arr);
+        }
+      } else if (res.value) {
+        const arr = resultMap.get('__other__') || [];
+        arr.push(String(res.value));
+        resultMap.set('__other__', arr);
+      }
+    });
+
+    const testsString = testNames.join('; ') || (order.tests || '—');
+    const resultsParts: string[] = [];
+    if (testNames.length) {
+      testNames.forEach(name => {
+        const vals = resultMap.get(name);
+        if (vals && vals.length) resultsParts.push(`${name}: ${vals.join(', ')}`);
+        else resultsParts.push(`${name}: `);
+      });
+    }
+    if (resultMap.has('__other__')) {
+      resultsParts.push(`Other: ${(resultMap.get('__other__') || []).join(' | ')}`);
+    }
+
+    const resultsString = resultsParts.filter(Boolean).join(' | ') || '—';
+    return { testsString, resultsString };
+  };
+
   const filteredOrders = useMemo(() => {
     const normalizedLabOrders = labOrders.map((o: any) => {
       const patientId = o.patientId ?? (o.patient ? String(o.patient) : '');
@@ -606,30 +671,79 @@ export const Laboratory: React.FC = () => {
     let title = '';
     
     if (activeTab === 'orders') {
-      dataToExport = filteredOrders.map(order => {
-        const patient = patients.find(p => p.id === order.patientId);
-        const doctor = staff.find(s => s.id === order.doctorId);
-        // Resolve tests into readable names. 
+      // helper to build aligned Tests and Results strings for an order
+      const formatOrderTestsAndResults = (order: any) => {
         const rawTests: any[] = (order.testIds && Array.isArray(order.testIds) && order.testIds.length)
           ? order.testIds
           : (order.tests && Array.isArray(order.tests) && order.tests.length)
             ? order.tests
             : (order.testDetails && Array.isArray(order.testDetails) ? order.testDetails.map((d:any) => d.key || d.name || d) : []);
 
-        const tests = (rawTests || []).map((t: any) => {
+        const testNames: string[] = (rawTests || []).map((t: any) => {
           const tid = String(t);
-          // try match by id or by name (stringified)
           const found = labTests.find(lt => String(lt.id) === tid || String(lt.name) === tid);
           if (found) return found.name;
-          // if original item looks like an object with name/key
           if (t && typeof t === 'object') return t.name || t.key || String(t);
           return tid;
-        }).filter(Boolean).join(', ');
+        }).filter(Boolean) as string[];
 
+        // collect results for this order and attempt to align them to testNames
+        const orderResults = (labResults || []).filter((r:any) => String(r.orderId) === String(order.id));
+        const resultMap = new Map<string, string[]>();
+        orderResults.forEach((res: any) => {
+          if (res.pairs && Array.isArray(res.pairs) && res.pairs.length) {
+            res.pairs.forEach((p: any, idx: number) => {
+              const name = (p.testName && String(p.testName)) || testNames[idx] || '';
+              if (!name) return;
+              const arr = resultMap.get(name) || [];
+              arr.push(String(p.value ?? ''));
+              resultMap.set(name, arr);
+            });
+          } else if (Array.isArray(res.values) && res.values.length) {
+            if (testNames.length === res.values.length) {
+              res.values.forEach((v: any, idx: number) => {
+                const name = testNames[idx] || `Test ${idx+1}`;
+                const arr = resultMap.get(name) || [];
+                arr.push(String(v ?? ''));
+                resultMap.set(name, arr);
+              });
+            } else {
+              const arr = resultMap.get('__other__') || [];
+              arr.push(res.values.join(', '));
+              resultMap.set('__other__', arr);
+            }
+          } else if (res.value) {
+            const arr = resultMap.get('__other__') || [];
+            arr.push(String(res.value));
+            resultMap.set('__other__', arr);
+          }
+        });
+
+        const testsString = testNames.join('; ') || (order.tests || '—');
+        const resultsParts: string[] = [];
+        if (testNames.length) {
+          testNames.forEach(name => {
+            const vals = resultMap.get(name);
+            if (vals && vals.length) resultsParts.push(`${name}: ${vals.join(', ')}`);
+            else resultsParts.push(`${name}: `);
+          });
+        }
+        if (resultMap.has('__other__')) {
+          resultsParts.push(`Other: ${(resultMap.get('__other__') || []).join(' | ')}`);
+        }
+
+        const resultsString = resultsParts.filter(Boolean).join(' | ') || '—';
+        return { testsString, resultsString };
+      };
+
+      dataToExport = filteredOrders.map(order => {
+        const patient = patients.find(p => p.id === order.patientId);
+        const doctor = staff.find(s => s.id === order.doctorId);
+        const { testsString } = formatOrderTestsAndResults(order);
         return {
           'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
           'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
-          'Tests': tests || (order.tests || '—'),
+          'Tests': testsString,
           'Status': order.status,
           'Order Date': formatDate(order.orderDate)
         };
@@ -659,32 +773,39 @@ export const Laboratory: React.FC = () => {
   const handleExportOrder = (order: any) => {
     const patient = patients.find(p => p.id === order.patientId);
     const doctor = staff.find(s => s.id === order.doctorId);
-    // Build readable tests list for a single order export (same strategy as bulk export)
-    const rawTestsSingle: any[] = (order.testIds && Array.isArray(order.testIds) && order.testIds.length)
-      ? order.testIds
-      : (order.tests && Array.isArray(order.tests) && order.tests.length)
-        ? order.tests
-        : (order.testDetails && Array.isArray(order.testDetails) ? order.testDetails.map((d:any) => d.key || d.name || d) : []);
-
-    const testsSingle = (rawTestsSingle || []).map((t: any) => {
-      const tid = String(t);
-      const found = labTests.find(lt => String(lt.id) === tid || String(lt.name) === tid);
-      if (found) return found.name;
-      if (t && typeof t === 'object') return t.name || t.key || String(t);
-      return tid;
-    }).filter(Boolean).join(', ');
+    const { testsString: testsSingle } = formatOrderTestsAndResults(order);
 
     const dataToExport = [
       {
         'Patient': patient ? `${patient.firstName} ${patient.lastName}` : ((order as any).patient_name || 'Unknown'),
         'Doctor': doctor ? formatPersonName(doctor, 'Dr.') : ((order as any).doctor_name || 'Unknown'),
         'Tests': testsSingle || (order.tests || '—'),
-        // notes removed from order model
         'Status': order.status,
         'Order Date': formatDate(order.orderDate)
       }
     ];
     exportData(dataToExport, `lab-order-${order.id}`, 'pdf', `Lab Order — ${patient ? `${patient.firstName} ${patient.lastName}` : order.id}`);
+  };
+
+  const handleDeleteOrder = (id: string) => {
+    if (!confirm('Delete this lab order? This action cannot be undone.')) return;
+    // remove locally first
+    deleteLabOrder(id);
+
+    const idNum = Number(id);
+    if (!id || Number.isNaN(idNum) || idNum <= 0) {
+      // local-only order, nothing to delete on server
+      return;
+    }
+
+    apiDeleteLabOrder(idNum).catch((err) => {
+      console.error('Failed to delete lab order on server', err);
+      apiFetchLabOrders()
+        .then((data) => setLabOrders(data as any))
+        .catch(() => {
+          // swallow secondary error
+        });
+    });
   };
 
   const handleDeleteResult = (id: string) => {
@@ -723,27 +844,7 @@ export const Laboratory: React.FC = () => {
             // swallow secondary error
           });
       });
-  };
 
-  const handleDeleteOrder = (id: string) => {
-    if (!confirm('Delete this lab order? This action cannot be undone.')) return;
-    // remove locally first
-    deleteLabOrder(id);
-
-    const idNum = Number(id);
-    if (!id || Number.isNaN(idNum) || idNum <= 0) {
-      // local-only order, nothing to delete on server
-      return;
-    }
-
-    apiDeleteLabOrder(idNum).catch((err) => {
-      console.error('Failed to delete lab order on server', err);
-      apiFetchLabOrders()
-        .then((data) => setLabOrders(data as any))
-        .catch(() => {
-          // swallow secondary error
-        });
-    });
   };
 
   // Helper used by LabOrderInputModal to finalize creation
@@ -1238,21 +1339,20 @@ export const Laboratory: React.FC = () => {
                     ) : (
                       (groupModalItems || []).map((it: any) => (
                         <div key={it.id} className="p-3 border rounded bg-white dark:bg-gray-800 flex items-center justify-between">
-                          <div>
-                            <div className="font-medium">{it.testName || labTests.find(t => t.id === it.testId)?.name || 'Test'}</div>
-                            <div className="text-sm text-gray-500">
-                              {(it.pairs || []).length ? (
-                                <ul className="list-disc list-inside">
-                                  {(it.pairs || []).map((p: any, i: number) => (
-                                    <li key={i}>{(p.testName || (i===0 ? (it.testName || labTests.find((t:any)=>t.id===it.testId)?.name) : ''))}: {p.value}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <>{Array.isArray(it.values) ? it.values.join(', ') : (it.value || '—')}</>
-                              )}
+                            <div>
+                              <div className="text-sm text-gray-500">
+                                {(it.pairs || []).length ? (
+                                  <ul className="list-disc list-inside">
+                                    {(it.pairs || []).map((p: any, i: number) => (
+                                      <li key={i}>{(p.testName || (i===0 ? (it.testName || labTests.find((t:any)=>t.id===it.testId)?.name) : ''))}: {p.value}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <>{Array.isArray(it.values) ? it.values.join(', ') : (it.value || '—')}</>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-400">Date: {formatDate(it.completedAt)}</div>
                             </div>
-                            <div className="text-xs text-gray-400">Date: {formatDate(it.completedAt)}</div>
-                          </div>
                           <div className="flex space-x-2">
                             <Button size="small" variant="secondary" onClick={() => { setGroupModalOpen(false); handleOpenModal('result', it); }}>
                               Edit
