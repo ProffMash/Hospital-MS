@@ -4,6 +4,8 @@ import { useHospitalStore } from '../../store/hospitalStore';
 import type { Medicine as ApiMedicine } from '../../Api/medicineApi';
 import { fetchMedicines, createMedicine, updateMedicine as apiUpdateMedicine, deleteMedicine as apiDeleteMedicine, fetchMedicineById } from '../../Api/medicineApi';
 import { createSale } from '../../Api/salesApi';
+import { useAuthStore } from '../../store/authStore';
+import { isRole } from '../../utils/roleUtils';
 import { Card } from '../UI/Card';
 import { Button } from '../UI/Button';
 import { Input } from '../UI/Input';
@@ -14,6 +16,8 @@ import { formatDate } from '../../utils/dateUtils';
 import { exportData } from '../../utils/exportUtils';
 
 export const MedicineInventory: React.FC = () => {
+  const user = useAuthStore(state => state.user);
+  const isPharmacist = isRole(user, 'pharmacist');
   const { addSale } = useHospitalStore();
 
   const [medicines, setMedicines] = useState<ApiMedicine[]>([]);
@@ -74,6 +78,11 @@ export const MedicineInventory: React.FC = () => {
 
   const handleOpenModal = (medicine?: ApiMedicine) => {
     if (medicine) {
+      // Prevent pharmacists from opening the edit modal
+      if (isPharmacist) {
+        alert('You are not authorized to edit medicines');
+        return;
+      }
       setEditingMedicine(medicine);
       setMedicineFormData({
         name: medicine.name,
@@ -108,6 +117,12 @@ export const MedicineInventory: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Prevent pharmacists from performing updates
+      if (editingMedicine && isPharmacist) {
+        alert('You are not authorized to update medicines');
+        handleCloseModal();
+        return;
+      }
       if (editingMedicine) {
         const updated = await apiUpdateMedicine(editingMedicine.id, {
           name: medicineFormData.name,
@@ -193,6 +208,11 @@ export const MedicineInventory: React.FC = () => {
   };
 
   const handleDelete = async (medicineId: number) => {
+    // Prevent pharmacists from deleting medicines
+    if (isPharmacist) {
+      alert('You are not authorized to delete medicines');
+      return;
+    }
     if (!window.confirm('Are you sure you want to delete this medicine?')) return;
     try {
       await apiDeleteMedicine(medicineId);
@@ -273,22 +293,26 @@ export const MedicineInventory: React.FC = () => {
           >
             Sell
           </Button>
-          <Button
-            size="small"
-            variant="secondary"
-            onClick={() => handleOpenModal(medicine)}
-            leftIcon={<Edit className="w-3 h-3" />}
-          >
-            Edit
-          </Button>
-          <Button
-            size="small"
-            variant="danger"
-            onClick={() => handleDelete(medicine.id)}
-            leftIcon={<Trash2 className="w-3 h-3" />}
-          >
-            Delete
-          </Button>
+          {!isPharmacist && (
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => handleOpenModal(medicine)}
+              leftIcon={<Edit className="w-3 h-3" />}
+            >
+              Edit
+            </Button>
+          )}
+          {!isPharmacist && (
+            <Button
+              size="small"
+              variant="danger"
+              onClick={() => handleDelete(medicine.id)}
+              leftIcon={<Trash2 className="w-3 h-3" />}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       )
     }

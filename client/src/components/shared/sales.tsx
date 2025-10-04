@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Download, Search, Package } from 'lucide-react';
 import type { Sale } from '../../Api/salesApi';
 import { fetchSales, deleteSale } from '../../Api/salesApi';
+import { useAuthStore } from '../../store/authStore';
+import { isRole } from '../../utils/roleUtils';
 import { Card } from '../UI/Card';
 import { Table } from '../UI/Table';
 import { Button } from '../UI/Button';
@@ -15,6 +17,8 @@ export const SalesList: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
+  const user = useAuthStore(state => state.user);
+  const isPharmacist = isRole(user, 'pharmacist');
 
   const load = async () => {
     setLoading(true);
@@ -34,6 +38,10 @@ export const SalesList: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: number) => {
+    if (isPharmacist) {
+      alert('You are not authorized to delete sales');
+      return;
+    }
     if (!window.confirm('Delete this sale?')) return;
     try {
       await deleteSale(id);
@@ -70,7 +78,7 @@ export const SalesList: React.FC = () => {
     exportData(dataToExport, 'sales-report', format, 'Sales Report');
   };
 
-  const columns = [
+  const baseColumns = [
     {
       key: 'medicine',
       header: 'Medicine',
@@ -113,18 +121,21 @@ export const SalesList: React.FC = () => {
       header: 'Date',
       render: (_: any, row: Sale) => formatDate(row.created_at || (row as any).date || ''),
     },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (_: any, row: Sale) => (
-        <div className="flex space-x-2">
-          <Button size="small" variant="danger" onClick={() => handleDelete(row.id)}>
-            Delete
-          </Button>
-        </div>
-      ),
-    },
   ];
+
+  const actionsColumn = {
+    key: 'actions',
+    header: 'Actions',
+    render: (_: any, row: Sale) => (
+      <div className="flex space-x-2">
+        <Button size="small" variant="danger" onClick={() => handleDelete(row.id)}>
+          Delete
+        </Button>
+      </div>
+    ),
+  };
+
+  const columns = isPharmacist ? baseColumns : [...baseColumns, actionsColumn];
 
   return (
     <div className="space-y-6">
