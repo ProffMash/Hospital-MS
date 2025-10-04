@@ -30,7 +30,19 @@ export const exportToCSV = (data: any[], filename: string) => {
 
 // PDF Export Utility (simplified - would use a library like jsPDF in production)
 export const exportToPDF = (data: any[], _filename: string, title: string) => {
-  // This is a simplified version - in production, you'd use jsPDF or similar
+
+  const escapeAndFormat = (val: any) => {
+    if (val === null || val === undefined) return '';
+    const str = typeof val === 'string' ? val : String(val);
+    const escaped = str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+    return escaped.replace(/\n/g, '<br/>');
+  };
+
   const printContent = `
     <!DOCTYPE html>
     <html>
@@ -40,7 +52,7 @@ export const exportToPDF = (data: any[], _filename: string, title: string) => {
         body { font-family: Arial, sans-serif; margin: 20px; }
         h1 { color: #0EA5E9; text-align: center; }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: top; }
         th { background-color: #f2f2f2; font-weight: bold; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         @media print { body { margin: 0; } }
@@ -52,13 +64,13 @@ export const exportToPDF = (data: any[], _filename: string, title: string) => {
       <table>
         <thead>
           <tr>
-            ${Object.keys(data[0] || {}).map(key => `<th>${key}</th>`).join('')}
+            ${Object.keys(data[0] || {}).map(key => `<th>${escapeAndFormat(key)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
           ${data.map(row => `
             <tr>
-              ${Object.values(row).map(value => `<td>${value || ''}</td>`).join('')}
+              ${Object.values(row).map(value => `<td>${escapeAndFormat(value)}</td>`).join('')}
             </tr>
           `).join('')}
         </tbody>

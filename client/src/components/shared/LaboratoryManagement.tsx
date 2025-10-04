@@ -227,7 +227,7 @@ export const Laboratory: React.FC = () => {
       }
     });
 
-    const testsString = testNames.join('; ') || (order.tests || '—');
+  const testsString = testNames.join('\n') || (order.tests || '—');
     const resultsParts: string[] = [];
     if (testNames.length) {
       testNames.forEach(name => {
@@ -324,7 +324,7 @@ export const Laboratory: React.FC = () => {
       id: `group-${idx}-${key}`,
       patientName: group.patientName,
   // combine tests and values into a compact string (show pairings)
-  testsDisplay: group.items.map((it: any) => (it.pairs || []).map((p: any) => `${p.testName || it.testName || labTests.find((t:any) => t.id === it.testId)?.name || 'Test'}: ${p.value}`).join('; ')).join(' | '),
+  testsDisplay: group.items.map((it: any) => (it.pairs || []).map((p: any) => `${p.testName || it.testName || labTests.find((t:any) => t.id === it.testId)?.name || 'Test'}: ${p.value}`).join('\n')).join(' | '),
       latestDate: group.items.reduce((d: string | null, it: any) => {
         return it.completedAt && (!d || new Date(it.completedAt) > new Date(d)) ? it.completedAt : d;
       }, null as any) || '',
@@ -719,7 +719,7 @@ export const Laboratory: React.FC = () => {
           }
         });
 
-        const testsString = testNames.join('; ') || (order.tests || '—');
+  const testsString = testNames.join('\n') || (order.tests || '—');
         const resultsParts: string[] = [];
         if (testNames.length) {
           testNames.forEach(name => {
@@ -753,12 +753,10 @@ export const Laboratory: React.FC = () => {
     } else if (activeTab === 'results') {
       dataToExport = filteredResults.map(result => {
         const order = labOrders.find(o => o.id === result.orderId);
-        const test = labTests.find(t => t.id === result.testId);
         const patient = order ? patients.find(p => p.id === order.patientId) : null;
         return {
-          'Test': (result as any).testName || test?.name || 'Unknown Test',
           'Patient': (result as any).patientName || (patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown'),
-          'Result': (result as any).pairs && (result as any).pairs.length ? (result as any).pairs.map((p: any) => `${p.testName || ''}: ${p.value}`).join('; ') : (Array.isArray((result as any).values) ? (result as any).values.join(', ') : (result as any).value || ''),
+    'Result': (result as any).pairs && (result as any).pairs.length ? (result as any).pairs.map((p: any) => `${p.testName || ''}: ${p.value}`).join('\n') : (Array.isArray((result as any).values) ? (result as any).values.join(', ') : (result as any).value || ''),
           'Status': result.status,
           'Date': formatDate(result.completedAt)
         };
@@ -1312,7 +1310,7 @@ export const Laboratory: React.FC = () => {
                           <Button size="small" variant="secondary" onClick={() => { setGroupModalItems(row.items || []); setGroupModalOpen(true); }}>
                             Details
                           </Button>
-                            <Button size="small" variant="secondary" onClick={() => exportData((row.items || []).map((it: any) => ({ Test: it.testName || labTests.find(t => t.id === it.testId)?.name || '', Result: (it.pairs && it.pairs.length) ? it.pairs.map((p:any)=>`${p.testName || ''}: ${p.value}`).join('; ') : (Array.isArray(it.values) ? it.values.join(', ') : (it.value || '')), Date: formatDate(it.completedAt) })), `lab-results-${row.patientName}`, 'pdf', `Lab Results — ${row.patientName}`)}>
+                            <Button size="small" variant="secondary" onClick={() => exportData((row.items || []).map((it: any) => ({ Result: (it.pairs && it.pairs.length) ? it.pairs.map((p:any)=>`${p.testName || ''}: ${p.value}`).join('\n') : (Array.isArray(it.values) ? it.values.join(', ') : (it.value || '')), Date: formatDate(it.completedAt) })), `lab-results-${row.patientName}`, 'pdf', `Lab Results — ${row.patientName}`)}>
                               Export PDF
                             </Button>
                             <Button size="small" variant="danger" onClick={() => {
