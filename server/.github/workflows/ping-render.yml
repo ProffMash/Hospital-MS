@@ -1,0 +1,26 @@
+name: Ping Render to Keep Awake
+
+on:
+  schedule:
+    - cron: '*/3 * * * *'  # Every 3 minutes (UTC)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo start time
+        run: echo "🏓 Starting Render ping at $(date -u) UTC"
+
+      - name: Ping Render /ping endpoint (fail on non-2xx, show verbose on failure)
+        run: |
+          set -euxo pipefail
+          url="https://hospital-ms-9mt5.onrender.com/ping"
+          # Quietly fail on non-2xx and discard body; on failure show verbose output for debugging
+          if curl -fsS -o /dev/null "$url"; then
+            echo "✅ Ping successful at $(date -u) UTC"
+          else
+            echo "❌ Ping failed - showing verbose output"
+            curl -v "$url" || true
+            exit 1
+          fi
