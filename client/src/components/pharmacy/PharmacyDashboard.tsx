@@ -9,6 +9,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useHospitalStore } from '../../store/hospitalStore';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../UI/Card';
 import { fetchMedicines } from '../../Api/medicineApi';
 import { getTotalRevenue, getTodaySales } from '../../Api/salesApi';
@@ -32,6 +33,7 @@ export const PharmacyDashboard: React.FC = () => {
   const [apiMedicinesCount, setApiMedicinesCount] = useState<number | null>(null);
   const [serverTotalRevenue, setServerTotalRevenue] = useState<number | null>(null);
   const [serverTodayRevenue, setServerTodayRevenue] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let mounted = true;
@@ -143,7 +145,7 @@ export const PharmacyDashboard: React.FC = () => {
             </h3>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <button className="p-4 text-left border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <button onClick={() => navigate('/inventory')} className="p-4 text-left border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               <Pill className="w-6 h-6 text-green-500 mb-2" />
               <p className="text-sm font-medium text-gray-900 dark:text-white">Manage Inventory</p>
             </button>
@@ -151,7 +153,7 @@ export const PharmacyDashboard: React.FC = () => {
               <Clock className="w-6 h-6 text-blue-500 mb-2" />
               <p className="text-sm font-medium text-gray-900 dark:text-white">Process Prescriptions</p>
             </button>
-            <button className="p-4 text-left border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+            <button onClick={() => navigate('/inventory')} className="p-4 text-left border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               <AlertTriangle className="w-6 h-6 text-red-500 mb-2" />
               <p className="text-sm font-medium text-gray-900 dark:text-white">Low Stock Alert</p>
             </button>
