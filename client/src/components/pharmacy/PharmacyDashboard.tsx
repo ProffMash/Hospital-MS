@@ -11,6 +11,7 @@ import {
 import { useHospitalStore } from '../../store/hospitalStore';
 import { Card } from '../UI/Card';
 import { fetchMedicines } from '../../Api/medicineApi';
+import { getTotalRevenue, getTodaySales } from '../../Api/salesApi';
 
 interface StatCard {
   title: string;
@@ -18,6 +19,7 @@ interface StatCard {
   icon: React.ComponentType<any>;
   color: string;
   change?: string;
+  isCurrency?: boolean;
 }
 
 export const PharmacyDashboard: React.FC = () => {
@@ -28,6 +30,8 @@ export const PharmacyDashboard: React.FC = () => {
   } = useHospitalStore();
 
   const [apiMedicinesCount, setApiMedicinesCount] = useState<number | null>(null);
+  const [serverTotalRevenue, setServerTotalRevenue] = useState<number | null>(null);
+  const [serverTodayRevenue, setServerTodayRevenue] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -38,6 +42,22 @@ export const PharmacyDashboard: React.FC = () => {
       .catch(() => {
         // ignore errors here; dashboard will fall back to store medicines length
       });
+
+    (async () => {
+      try {
+        const total = await getTotalRevenue();
+        if (mounted) setServerTotalRevenue(total.total_revenue ?? 0);
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        const today = await getTodaySales();
+        if (mounted) setServerTodayRevenue(today.total_revenue ?? 0);
+      } catch (e) {
+        // ignore
+      }
+    })();
     return () => { mounted = false; };
   }, []);
 
@@ -57,15 +77,19 @@ export const PharmacyDashboard: React.FC = () => {
       return d === todayKey ? sum + (price || 0) : sum;
     }, 0);
 
+    // prefer server values when available
+    const totalSalesFinal = serverTotalRevenue ?? totalSales;
+    const todaysSalesFinal = serverTodayRevenue ?? todaysSales;
+
     const baseStats: StatCard[] = [
       { title: 'Total Medicines', value: apiMedicinesCount ?? medicines.length, icon: Pill, color: 'bg-green-500' },
-      { title: 'Total Sales', value: totalSales, icon: DollarSign, color: 'bg-indigo-500' },
-      { title: "Today's Sales", value: todaysSales, icon: Calendar, color: 'bg-blue-500' },
+      { title: 'Total Sales', value: totalSalesFinal, icon: DollarSign, color: 'bg-indigo-500', isCurrency: true },
+      { title: "Today's Sales", value: todaysSalesFinal, icon: Calendar, color: 'bg-blue-500', isCurrency: true },
       { title: 'Total Prescriptions', value: prescriptions.length, icon: TrendingUp, color: 'bg-purple-500' }
     ];
 
     return baseStats;
-  }, [medicines, prescriptions, salesArr, apiMedicinesCount]);
+  }, [medicines, prescriptions, salesArr, apiMedicinesCount, serverTotalRevenue, serverTodayRevenue]);
 
   const recentActivities = useMemo(() => {
     // show recent sales (latest 5)
@@ -115,7 +139,7 @@ export const PharmacyDashboard: React.FC = () => {
                     {stat.title}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stat.value}
+                    {stat.isCurrency ? (typeof stat.value === 'number' ? stat.value.toLocaleString(undefined, { style: 'currency', currency: 'USD' }) : stat.value) : stat.value}
                   </p>
                   {stat.change && (
                     <p className="text-xs text-green-600 flex items-center">
