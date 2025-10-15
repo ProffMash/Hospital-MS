@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.shortcuts import render
 from rest_framework import viewsets
 from .models import LabOders, LabResults, User, Patient, Medicine, Diagnosis,   Appointments, Sale
@@ -12,6 +13,8 @@ from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Sum
 
 # Create your views here.
 User = get_user_model()
@@ -79,16 +82,13 @@ class LabResultViewSet(viewsets.ModelViewSet):
     serializer_class = LabResultSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-from django.core.exceptions import ValidationError as DjangoValidationError
-
-
 @method_decorator(cache_page(30), name='list')
 class SaleViewSet(viewsets.ModelViewSet):
     # optimize queries by selecting related medicine
     # order by date desc and select related medicine for table views
     queryset = Sale.objects.all().select_related('medicine').order_by('-date')
     serializer_class = SaleSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    # permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -118,6 +118,30 @@ class SaleViewSet(viewsets.ModelViewSet):
         except DjangoValidationError as e:
             return Response(e.message_dict if hasattr(e, 'message_dict') else {'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=['get'], url_path='total_revenue')
+    def total_revenue(self, request):
+        """Return total revenue for all sales or optionally within a date range.
+
+        Query params: start_date, end_date (YYYY-MM-DD)
+        """
+        start = request.query_params.get('start_date')
+        end = request.query_params.get('end_date')
+        total = Sale.total_revenue(start_date=start, end_date=end)
+        return Response({"total_revenue": float(total), "currency": "$"})
+
+    @action(detail=False, methods=['get'], url_path='today_sales')
+    def today_sales(self, request):
+        today = timezone.now().date()
+        sales = Sale.objects.filter(date=today).select_related('medicine')
+        daily_revenue = Sale.total_revenue(start_date=today, end_date=today)
+        serializer = self.get_serializer(sales, many=True)
+        return Response({
+            "date": today,
+            "sales": serializer.data,
+            "total_revenue": float(daily_revenue),
+            "sales_count": sales.count()
+        })
 
 
 class AppointmentViewSet(viewsets.ModelViewSet):
@@ -172,3 +196,6 @@ class LoginView(APIView):
 def get_user_count(request):
     count = User.objects.count()
     return Response({"user_count": count})
+
+
+# Note: revenue endpoints implemented as actions on SaleViewSet (routes registered in urls.py)

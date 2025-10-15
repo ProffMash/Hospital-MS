@@ -14,14 +14,12 @@ router.register(r'lab-results', LabResultViewSet, basename='lab-result')
 
 urlpatterns = [
     path('', include(router.urls)),
-    # Example custom endpoints (implement these in your viewsets if needed):
-    # path('medicines/low_stock/', MedicineViewSet.as_view({'get': 'low_stock'}), name='low-stock-medicines'),
-    # path('medicines/low_stock/count/', MedicineViewSet.as_view({'get': 'low_stock_count'}), name='low-stock-medicines-count'),
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', LoginView.as_view(), name='login'),
-    # path('users/count/', get_user_count, name='user-count'),
     path('patients/count/', PatientViewSet.as_view({'get': 'count'}), name='patient-count'),
     path('medicines/count/', MedicineViewSet.as_view({'get': 'count'}), name='medicine-count'),
     path('medicines/low_stock/', MedicineViewSet.as_view({'get': 'low_stock'}), name='low-stock-medicines'),
     path('diagnoses/count/', DiagnosisViewSet.as_view({'get': 'count'}), name='diagnosis-count'),
+    path('total_revenue/', SaleViewSet.as_view({'get': 'total_revenue'}), name='total-revenue'),
+    path('today_sales/', SaleViewSet.as_view({'get': 'today_sales'}), name='today-sales'),
 ]

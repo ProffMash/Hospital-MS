@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { 
   Users, 
   Calendar, 
@@ -12,6 +12,7 @@ import {
 import { useHospitalStore } from '../../store/hospitalStore';
 import { Card } from '../UI/Card';
 import { isToday } from '../../utils/dateUtils';
+import { getTotalRevenue, getTodaySales } from '../../Api/salesApi';
 
 interface StatCard {
   title: string;
@@ -34,13 +35,43 @@ export const AdminDashboard: React.FC = () => {
     sales
   } = useHospitalStore();
 
+  const [serverTotalRevenue, setServerTotalRevenue] = useState<number | null>(null);
+  const [serverTodayRevenue, setServerTodayRevenue] = useState<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const totalRes = await getTotalRevenue();
+        if (!mounted) return;
+        setServerTotalRevenue(totalRes.total_revenue ?? 0);
+      } catch (e) {
+        // ignore, keep fallback
+      }
+
+      try {
+        const todayRes = await getTodaySales();
+        if (!mounted) return;
+        setServerTodayRevenue(todayRes.total_revenue ?? 0);
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { mounted = false; };
+  }, [sales]);
+
   const stats = useMemo(() => {
     const todayAppointments = appointments.filter(apt => isToday(apt.date));
     const pendingLabOrders = labOrders.filter(order => order.status === 'pending');
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
-    const todayRevenue = sales
+    // client-side computed fallbacks (used if server values not yet loaded)
+    const totalRevenueFallback = sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+    const todayRevenueFallback = sales
       .filter(sale => isToday(sale.saleDate))
       .reduce((sum, sale) => sum + sale.totalPrice, 0);
+
+    // Prefer server-provided totals if available
+    const totalRevenue = serverTotalRevenue ?? totalRevenueFallback;
+    const todayRevenue = serverTodayRevenue ?? todayRevenueFallback;
 
     const baseStats: StatCard[] = [
       { title: 'Total Patients', value: patients.length, icon: Users, color: 'bg-blue-500' },
@@ -53,7 +84,7 @@ export const AdminDashboard: React.FC = () => {
     ];
 
     return baseStats;
-  }, [patients, staff, appointments, diagnoses, medicines, prescriptions, labOrders, sales]);
+  }, [patients, staff, appointments, diagnoses, medicines, prescriptions, labOrders, sales, serverTotalRevenue, serverTodayRevenue]);
 
   const recentActivities = useMemo(() => {
     const activities: Array<{ type: string; message: string; time: string; color: string }> = [];
@@ -145,7 +176,7 @@ export const AdminDashboard: React.FC = () => {
                     {stat.title}
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {stat.isRevenue ? `$${stat.value.toFixed(2)}` : stat.value}
+                    {stat.isRevenue ? `$${Number(stat.value ?? 0).toFixed(2)}` : stat.value}
                   </p>
                   {stat.change && (
                     <p className="text-xs text-green-600 flex items-center">
@@ -187,32 +218,6 @@ export const AdminDashboard: React.FC = () => {
             </p>
           </div>
         </Card>
-
-        {/* <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Prescription Fulfillment
-            </h3>
-            <Pill className="w-5 h-5 text-blue-500" />
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600 dark:text-gray-400">Dispensed</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
-                {quickStats.dispensedPrescriptions}/{prescriptions.length}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${quickStats.prescriptionRate}%` }}
-              ></div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {quickStats.prescriptionRate}% fulfillment rate
-            </p>
-          </div>
-        </Card> */}
 
         <Card>
           <div className="flex items-center justify-between mb-4">

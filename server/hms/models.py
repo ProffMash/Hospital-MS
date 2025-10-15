@@ -1,5 +1,6 @@
 from django.db import models, transaction
-from django.db.models import F
+from django.db.models import F, Sum
+from decimal import Decimal
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.forms import ValidationError
 from rest_framework.response import Response
@@ -182,6 +183,29 @@ class Sale(models.Model):
     # index by date for faster range and calendar queries
     date = models.DateField(db_index=True)
 
+    @classmethod
+    def total_revenue(cls, start_date=None, end_date=None):
+        """Return total revenue (sum of total_amount) optionally filtered by date range.
+
+        Args:
+            start_date (date or str): inclusive start date (filter date__gte)
+            end_date (date or str): inclusive end date (filter date__lte)
+
+        Returns:
+            Decimal: total revenue (two decimal places)
+        """
+        qs = cls.objects.all()
+        if start_date:
+            qs = qs.filter(date__gte=start_date)
+        if end_date:
+            qs = qs.filter(date__lte=end_date)
+        total = qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        # Ensure a Decimal with two decimal places
+        try:
+            return Decimal(total).quantize(Decimal('0.01'))
+        except Exception:
+            return Decimal('0.00')
+
     def clean(self):
         # Ensure quantity is positive (PositiveIntegerField already enforces >=0) and stock sufficiency
         if self.quantity <= 0:
@@ -254,3 +278,7 @@ def get_medicine_count():
 def get_diagnosis_count():
     count = Diagnosis.objects.count()
     return Response({"diagnosis_count": count})
+
+def get_sale_count():
+    count = Sale.objects.count()
+    return Response({"sale_count": count})
