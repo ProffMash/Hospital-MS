@@ -91,26 +91,6 @@ export const PharmacyDashboard: React.FC = () => {
     return baseStats;
   }, [medicines, prescriptions, salesArr, apiMedicinesCount, serverTotalRevenue, serverTodayRevenue]);
 
-  const recentActivities = useMemo(() => {
-    // show recent sales (latest 5)
-    const activities: Array<{ type: string; message: string; time: string; color: string }> = [];
-    (sales || [])
-      .slice()
-      .sort((a, b) => new Date(b.saleDate ?? b.createdAt).getTime() - new Date(a.saleDate ?? a.createdAt).getTime())
-      .slice(0, 5)
-      .forEach(s => {
-        const amt = typeof s.totalPrice === 'number' ? s.totalPrice : (s.unitPrice && s.quantity ? s.unitPrice * s.quantity : 0);
-        activities.push({
-          type: 'sale',
-          message: `Sale: ${amt.toLocaleString(undefined, { style: 'currency', currency: 'USD' })}`,
-          time: new Date(s.saleDate ?? s.createdAt).toLocaleTimeString(),
-          color: 'text-green-600'
-        });
-      });
-
-    return activities;
-  }, [salesArr]);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -156,35 +136,6 @@ export const PharmacyDashboard: React.FC = () => {
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Recent Sales
-            </h3>
-          </div>
-          <div className="space-y-4">
-            {recentActivities.length > 0 ? (
-              recentActivities.map((activity, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <div className={`w-2 h-2 rounded-full ${activity.color.replace('text-', 'bg-')}`}></div>
-                  <div className="flex-1">
-                    <p className="text-sm text-gray-900 dark:text-white">
-                      {activity.message}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-8">
-                No recent sales
-              </p>
-            )}
-          </div>
-        </Card>
-
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
